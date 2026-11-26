@@ -1,0 +1,2615 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="theme-color" content="#136b58">
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>👗</text></svg>">
+  <title>VTO Lab — Comparateur de virtual try-on</title>
+  <style>
+    /* ═══════════════════════════════════════════
+       DESIGN TOKENS
+    ═══════════════════════════════════════════ */
+    :root {
+      color-scheme: light;
+      --ink: #1d2735;
+      --muted: #5d6e82;
+      --line: #dce3ea;
+      --paper: #f4f6f9;
+      --surface: #ffffff;
+      --accent: #136b58;
+      --accent-dark: #0e5143;
+      --accent-soft: #e1f0ec;
+      --warn-bg: #fff8e6;
+      --warn-ink: #6b4c0e;
+      --danger: #c0303d;
+      --danger-soft: #fdf0f1;
+      --success-ink: #145540;
+      --success-bg: #e4f4ec;
+      --info-bg: #eaf3ff;
+      --info-ink: #1a4a7a;
+      --radius: 14px;
+      --radius-sm: 9px;
+      --shadow: 0 2px 10px #1d273508, 0 1px 3px #1d273510;
+      --shadow-lg: 0 8px 32px #1d273514, 0 2px 8px #1d273310;
+      --transition: 160ms ease;
+      font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-synthesis: none;
+      text-rendering: optimizeLegibility;
+    }
+
+    /* ═══════════════════════════════════════════
+       RESET & BASE
+    ═══════════════════════════════════════════ */
+    *, *::before, *::after { box-sizing: border-box; }
+    [hidden] { display: none !important; }
+    body { margin: 0; background: var(--paper); color: var(--ink); line-height: 1.55; }
+    button, input, select, textarea { font: inherit; }
+    button, input, select { min-height: 44px; }
+    p { margin: .3rem 0 .7rem; }
+    h2 { margin: 0 0 .6rem; font-size: 1.1rem; letter-spacing: -.01em; }
+    h3 { margin: 0 0 .5rem; font-size: .95rem; }
+    a { color: var(--accent); }
+    a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible,
+    textarea:focus-visible, summary:focus-visible {
+      outline: 3px solid #53a995; outline-offset: 2px; border-radius: 4px;
+    }
+
+    /* ═══════════════════════════════════════════
+       BUTTONS
+    ═══════════════════════════════════════════ */
+    button {
+      display: inline-flex; align-items: center; gap: .4rem;
+      border: 1.5px solid var(--line); border-radius: var(--radius-sm);
+      padding: .55rem .95rem; background: var(--surface); color: var(--ink);
+      cursor: pointer; font-weight: 600; font-size: .9rem;
+      transition: border-color var(--transition), background var(--transition), box-shadow var(--transition);
+      white-space: nowrap; user-select: none;
+    }
+    button:hover { border-color: var(--accent); background: var(--accent-soft); }
+    button.primary {
+      color: #fff; background: var(--accent); border-color: var(--accent);
+      box-shadow: 0 1px 4px #136b5820;
+    }
+    button.primary:hover { background: var(--accent-dark); border-color: var(--accent-dark); }
+    button.danger { color: var(--danger); border-color: #f0c0c4; background: var(--danger-soft); }
+    button.danger:hover { background: #fce8ea; border-color: var(--danger); }
+    button.ghost { border-color: transparent; background: transparent; color: var(--muted); }
+    button.ghost:hover { background: var(--paper); border-color: var(--line); color: var(--ink); }
+    button.icon-btn {
+      padding: .4rem; min-height: 36px; min-width: 36px;
+      border-radius: 50%; justify-content: center;
+    }
+    button:disabled { cursor: not-allowed; opacity: .45; pointer-events: none; }
+
+    /* ═══════════════════════════════════════════
+       FORM ELEMENTS
+    ═══════════════════════════════════════════ */
+    input, select, textarea {
+      width: 100%; padding: .6rem .78rem; color: var(--ink); background: #fff;
+      border: 1.5px solid #c8d4de; border-radius: var(--radius-sm);
+      transition: border-color var(--transition), box-shadow var(--transition);
+    }
+    input:focus, select:focus, textarea:focus {
+      border-color: var(--accent); box-shadow: 0 0 0 3px #136b5818;
+    }
+    textarea { min-height: 90px; resize: vertical; }
+    label { display: grid; gap: .3rem; font-weight: 600; font-size: .9rem; }
+    label small, .hint { color: var(--muted); font-size: .83rem; font-weight: 400; }
+    .field-error { color: #b82530; font-size: .82rem; margin-top: .25rem; display: none; }
+    .field-error.visible { display: block; }
+
+    /* ═══════════════════════════════════════════
+       LAYOUT
+    ═══════════════════════════════════════════ */
+    .shell { max-width: 1100px; padding: 1rem; margin: 0 auto; }
+    .row { display: flex; align-items: center; gap: .55rem; flex-wrap: wrap; }
+    .row.apart { justify-content: space-between; }
+    .grow { flex: 1 1 0; }
+    .grid { display: grid; gap: .75rem; }
+    .col2 { grid-template-columns: 1fr 1fr; }
+    .col3 { grid-template-columns: 1fr 1fr 1fr; }
+
+    /* ═══════════════════════════════════════════
+       CARDS
+    ═══════════════════════════════════════════ */
+    .card {
+      background: var(--surface); border: 1px solid var(--line);
+      border-radius: var(--radius); box-shadow: var(--shadow); padding: 1.1rem;
+    }
+    .card + .card { margin-top: .9rem; }
+
+    /* ═══════════════════════════════════════════
+       HEADER
+    ═══════════════════════════════════════════ */
+    .app-header {
+      display: flex; align-items: flex-start; justify-content: space-between;
+      flex-wrap: wrap; gap: .75rem; padding: 1.1rem 0 .6rem;
+    }
+    .brand { font-size: .72rem; font-weight: 800; letter-spacing: .13em;
+      text-transform: uppercase; color: var(--accent); margin-bottom: .2rem; }
+    .app-title { font-size: clamp(1.5rem, 4vw, 2rem); font-weight: 800; margin: 0;
+      line-height: 1.1; letter-spacing: -.02em; }
+    .app-subtitle { color: var(--muted); font-size: .88rem; margin: .25rem 0 0; }
+
+    /* ═══════════════════════════════════════════
+       HTTPS WARNING
+    ═══════════════════════════════════════════ */
+    #httpsWarning {
+      display: none; margin: .5rem 0;
+      padding: .8rem 1rem; border-radius: var(--radius-sm);
+      background: #fff3cd; color: #664d03; border: 1px solid #ffc10760;
+      font-size: .9rem;
+    }
+
+    /* ═══════════════════════════════════════════
+       STICKY ACTION BAR (mobile)
+    ═══════════════════════════════════════════ */
+    .action-bar {
+      position: sticky; top: 0; z-index: 20;
+      background: var(--surface); border-bottom: 1px solid var(--line);
+      box-shadow: 0 2px 8px #1d273514;
+      padding: .55rem 1rem;
+      display: flex; align-items: center; gap: .6rem; justify-content: space-between;
+    }
+    .action-bar .bar-left { display: flex; align-items: center; gap: .5rem; min-width: 0; }
+    .action-bar .bar-right { display: flex; align-items: center; gap: .5rem; flex-shrink: 0; }
+    .session-pill {
+      font-size: .8rem; font-weight: 600; color: var(--muted);
+      border: 1px solid var(--line); border-radius: 999px;
+      padding: .25rem .65rem; white-space: nowrap; overflow: hidden;
+      text-overflow: ellipsis; max-width: 180px;
+    }
+
+    /* ═══════════════════════════════════════════
+       STEP INDICATOR (empty state)
+    ═══════════════════════════════════════════ */
+    .steps-empty {
+      display: grid; gap: .6rem; padding: 1.1rem;
+    }
+    .step-item {
+      display: flex; align-items: flex-start; gap: .75rem;
+      padding: .7rem .85rem; border-radius: var(--radius-sm);
+      border: 1px solid var(--line); background: var(--paper);
+    }
+    .step-num {
+      display: flex; align-items: center; justify-content: center;
+      width: 28px; height: 28px; border-radius: 50%;
+      background: var(--accent); color: #fff; font-size: .8rem;
+      font-weight: 800; flex-shrink: 0;
+    }
+    .step-item.done .step-num { background: #19875e; }
+    .step-item.done { border-color: #b2dece; background: #f0fbf7; }
+    .step-text { font-size: .88rem; }
+    .step-text strong { font-weight: 700; }
+
+    /* ═══════════════════════════════════════════
+       IMAGE UPLOAD ZONES
+    ═══════════════════════════════════════════ */
+    .upload-zone {
+      border: 2px dashed #b8c8d6; border-radius: var(--radius-sm);
+      background: #f9fbfc; padding: .75rem; display: flex; flex-direction: column;
+      gap: .6rem; transition: border-color var(--transition);
+    }
+    .upload-zone:focus-within { border-color: var(--accent); }
+    .upload-label { font-weight: 700; font-size: .9rem; }
+    .upload-hint { font-size: .78rem; color: var(--muted); margin: 0; }
+    .upload-preview-wrap { position: relative; }
+    .upload-preview {
+      display: none; width: 100%; max-height: 240px;
+      aspect-ratio: 4/3; object-fit: contain;
+      border-radius: var(--radius-sm); background: #edf1f4;
+    }
+    .upload-preview.visible { display: block; }
+    .upload-actions { display: flex; gap: .45rem; flex-wrap: wrap; }
+    .upload-actions button { font-size: .82rem; padding: .4rem .7rem; min-height: 36px; }
+    .upload-clear {
+      position: absolute; top: .4rem; right: .4rem;
+      background: #ffffffcc; border: 1px solid var(--line);
+      border-radius: 50%; padding: 0; width: 28px; height: 28px; min-height: 28px;
+      font-size: .9rem; cursor: pointer; display: none;
+      align-items: center; justify-content: center;
+    }
+    .upload-preview.visible + .upload-clear { display: flex; }
+
+    /* ═══════════════════════════════════════════
+       GARMENT CONFIG
+    ═══════════════════════════════════════════ */
+    .config-section { display: grid; gap: .75rem; }
+
+    /* ═══════════════════════════════════════════
+       GENERATION SECTION
+    ═══════════════════════════════════════════ */
+    .prereqs {
+      font-size: .83rem; color: var(--muted); display: flex;
+      flex-wrap: wrap; gap: .4rem; margin-bottom: .6rem;
+    }
+    .prereq {
+      display: inline-flex; align-items: center; gap: .25rem;
+      border: 1px solid var(--line); border-radius: 999px;
+      padding: .18rem .55rem;
+    }
+    .prereq.ok { border-color: #95dab8; background: #f0fbf7; color: #145540; }
+    .prereq.missing { border-color: #f1c5c2; background: #fff4f4; color: #9b2d2d; }
+    .model-grid { display: grid; gap: .75rem; grid-template-columns: 1fr; }
+    .model-card {
+      border: 1.5px solid var(--line); border-radius: var(--radius);
+      background: var(--surface); padding: .9rem 1rem;
+      display: flex; flex-direction: column; gap: .55rem;
+      box-shadow: var(--shadow);
+    }
+    .model-card.running { border-color: #f0c060; background: #fffdf0; }
+    .model-card.success { border-color: #80cba8; background: #f4fdf8; }
+    .model-card.failed { border-color: #f1a0a4; background: #fff6f6; }
+    .model-card header { display: flex; align-items: center; gap: .5rem; flex-wrap: wrap; }
+    .model-card h3 { margin: 0; font-size: .95rem; }
+    .model-meta { font-size: .82rem; color: var(--muted); }
+    .model-actions { display: flex; gap: .45rem; flex-wrap: wrap; margin-top: auto; }
+    .model-fail-msg {
+      font-size: .82rem; color: #9b2d2d; background: #fff4f4;
+      border: 1px solid #f1c5c2; border-radius: 7px; padding: .45rem .6rem;
+    }
+    .model-fail-msg a { color: var(--danger); font-weight: 600; }
+    .timer { font-size: .82rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+    .gen-status { font-size: .88rem; color: var(--muted); min-height: 1.4em; }
+    .gen-status.error { color: #9b2d2d; }
+
+    /* ═══════════════════════════════════════════
+       RENDERS SECTION — grouped by model
+    ═══════════════════════════════════════════ */
+    .renders-section { margin-top: 1.1rem; }
+    .renders-title { display: flex; align-items: center; gap: .5rem; margin-bottom: .6rem; }
+    .renders-title h3 { margin: 0; }
+    .disclaimer-inline {
+      font-size: .78rem; color: var(--muted); font-style: italic;
+      border: 1px solid var(--line); border-radius: 999px; padding: .15rem .6rem;
+    }
+    .source-thumbs {
+      display: flex; gap: .5rem; margin-bottom: .75rem; flex-wrap: wrap;
+    }
+    .source-thumb-wrap { display: flex; flex-direction: column; gap: .2rem; }
+    .source-thumb-label { font-size: .72rem; color: var(--muted); font-weight: 600; }
+    .source-thumb {
+      width: 70px; height: 70px; object-fit: cover;
+      border-radius: 8px; background: #edf1f4; border: 1px solid var(--line);
+    }
+    .model-renders-group {
+      border: 1px solid var(--line); border-radius: var(--radius);
+      overflow: hidden; margin-bottom: .75rem; background: var(--surface);
+    }
+    .model-renders-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: .6rem .9rem; background: var(--paper);
+      border-bottom: 1px solid var(--line);
+    }
+    .model-renders-header strong { font-size: .9rem; }
+    .renders-scroll {
+      display: flex; gap: .6rem; overflow-x: auto; padding: .75rem;
+      scroll-snap-type: x mandatory;
+      scrollbar-width: thin;
+    }
+    .renders-scroll::-webkit-scrollbar { height: 5px; }
+    .renders-scroll::-webkit-scrollbar-track { background: var(--paper); }
+    .renders-scroll::-webkit-scrollbar-thumb { background: var(--line); border-radius: 99px; }
+    .attempt-card {
+      flex: 0 0 220px; display: flex; flex-direction: column;
+      border: 1.5px solid var(--line); border-radius: var(--radius-sm);
+      background: var(--surface); overflow: hidden; scroll-snap-align: start;
+    }
+    .attempt-card.running { border-color: #f0c060; }
+    .attempt-card.success { border-color: #90d4b0; }
+    .attempt-img-wrap { position: relative; background: #edf1f4; }
+    .attempt-img {
+      display: block; width: 100%; height: 200px; object-fit: contain;
+      cursor: zoom-in;
+    }
+    .attempt-placeholder {
+      height: 200px; display: flex; align-items: center; justify-content: center;
+      color: var(--muted); font-size: .82rem; text-align: center; padding: .75rem;
+    }
+    .attempt-info {
+      padding: .55rem .65rem; font-size: .8rem; color: var(--muted);
+      border-top: 1px solid var(--line);
+    }
+    .attempt-info .latency { font-variant-numeric: tabular-nums; }
+
+    /* ═══════════════════════════════════════════
+       BADGES & STATUS
+    ═══════════════════════════════════════════ */
+    .badge {
+      display: inline-flex; align-items: center; gap: .25rem;
+      border-radius: 999px; padding: .18rem .55rem;
+      background: var(--accent-soft); color: var(--accent-dark);
+      font-size: .75rem; font-weight: 750;
+    }
+    .badge.version { background: var(--paper); color: var(--muted); }
+    .status-badge {
+      display: inline-flex; align-items: center; gap: .28rem;
+      font-size: .8rem; font-weight: 700; border-radius: 999px;
+      padding: .18rem .6rem;
+    }
+    .sb-success { background: var(--success-bg); color: var(--success-ink); }
+    .sb-failed  { background: var(--danger-soft); color: var(--danger); }
+    .sb-refused { background: #fff4e5; color: #7a4a0a; }
+    .sb-running { background: #fff8e0; color: #6b4c0e; }
+
+    /* ═══════════════════════════════════════════
+       HISTORY (collapsed by default)
+    ═══════════════════════════════════════════ */
+    .history-wrap { margin-top: 1rem; }
+    details > summary {
+      cursor: pointer; user-select: none; font-weight: 700;
+      list-style: none; display: flex; align-items: center; gap: .4rem;
+      padding: .5rem 0; color: var(--muted); font-size: .88rem;
+    }
+    details > summary::-webkit-details-marker { display: none; }
+    details > summary::before { content: "▶"; font-size: .7rem; transition: transform var(--transition); }
+    details[open] > summary::before { transform: rotate(90deg); }
+    .history-list { display: grid; gap: .5rem; padding-top: .5rem; }
+    .history-item {
+      padding: .65rem .8rem; border: 1px solid var(--line);
+      border-radius: var(--radius-sm); font-size: .84rem;
+    }
+    .history-item p { margin: .15rem 0; }
+    .history-item .error-msg { color: var(--danger); font-size: .8rem; }
+
+    /* ═══════════════════════════════════════════
+       LIGHTBOX / VIEWER
+    ═══════════════════════════════════════════ */
+    #lightbox {
+      width: min(97vw, 1000px); max-width: none; padding: 0;
+      border: 0; border-radius: var(--radius); overflow: hidden;
+      background: #111820;
+    }
+    #lightbox::backdrop { background: #0c141cc8; backdrop-filter: blur(3px); }
+    .lightbox-bar {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: .6rem .9rem; background: #182230;
+    }
+    .lightbox-title { color: #d8e3ec; font-size: .88rem; font-weight: 600; }
+    .lightbox-meta { color: #6e8a9e; font-size: .78rem; }
+    #lightboxImage {
+      display: block; width: 100%; max-height: 80vh; object-fit: contain;
+    }
+    .lightbox-nav {
+      display: flex; align-items: center; justify-content: center; gap: .5rem;
+      padding: .55rem; background: #182230;
+    }
+    .lightbox-nav button { background: #243344; border-color: #364860; color: #c0d4e4; }
+    .lightbox-nav button:hover { background: #2e4258; }
+    .lightbox-source-row {
+      display: flex; gap: .6rem; padding: .6rem .9rem;
+      background: #182230; border-top: 1px solid #243344;
+    }
+    .lightbox-src { display: flex; flex-direction: column; gap: .2rem; }
+    .lightbox-src-label { font-size: .72rem; color: #6e8a9e; }
+    .lightbox-src img { width: 60px; height: 60px; object-fit: cover;
+      border-radius: 7px; background: #243344; }
+
+    /* ═══════════════════════════════════════════
+       CAMERA DIALOG
+    ═══════════════════════════════════════════ */
+    #cameraDialog {
+      width: min(96vw, 720px); max-width: none; padding: 0;
+      border: 0; border-radius: var(--radius); overflow: hidden;
+    }
+    #cameraDialog::backdrop { background: #0c141cc8; }
+    .camera-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: .75rem 1rem; border-bottom: 1px solid var(--line);
+    }
+    .camera-header h2 { margin: 0; font-size: 1rem; }
+    .camera-body { padding: .75rem; display: flex; flex-direction: column; gap: .6rem; }
+    #cameraVideo { display: block; width: 100%; max-height: 60vh; background: #1d2735; border-radius: 10px; }
+    #cameraPreviewWrap { display: none; }
+    #cameraPreviewWrap.visible { display: block; }
+    #cameraPreview { display: block; width: 100%; max-height: 60vh; border-radius: 10px; object-fit: contain; background: #edf1f4; }
+    .camera-footer {
+      display: flex; gap: .5rem; flex-wrap: wrap; padding: .75rem 1rem;
+      border-top: 1px solid var(--line);
+    }
+    #cameraStatus { font-size: .84rem; color: var(--muted); }
+    #cameraStatus.error { color: var(--danger); }
+    #cameraFacingBtn { font-size: .8rem; padding: .35rem .6rem; min-height: 36px; }
+    #cameraSelectWrap { display: flex; align-items: center; gap: .4rem; margin: .4rem 0; }
+    #cameraDeviceSelect { width: auto; min-height: 36px; font-size: .82rem; flex: 1; }
+
+    /* ═══════════════════════════════════════════
+       CONFIRM DIALOG (custom, single component)
+    ═══════════════════════════════════════════ */
+    #confirmDialog {
+      width: min(94vw, 440px); padding: 0;
+      border: 0; border-radius: var(--radius); overflow: hidden;
+      box-shadow: var(--shadow-lg);
+    }
+    #confirmDialog::backdrop { background: #0c141cc4; }
+    .dlg-header {
+      padding: .9rem 1.1rem .5rem; border-bottom: 1px solid var(--line);
+    }
+    .dlg-header h2 { margin: 0; font-size: 1.05rem; }
+    .dlg-body { padding: .8rem 1.1rem 0; }
+    .dlg-body p { margin: 0; color: var(--muted); font-size: .9rem; }
+    .dlg-footer {
+      display: flex; justify-content: flex-end; gap: .5rem;
+      padding: .85rem 1.1rem; flex-wrap: wrap;
+    }
+
+    /* ═══════════════════════════════════════════
+       PROVIDER SETTINGS DIALOG
+    ═══════════════════════════════════════════ */
+    #providerSettings {
+      width: min(97vw, 820px); max-height: 94vh; overflow-y: auto;
+      padding: 0; border: 0; border-radius: var(--radius); overflow-x: hidden;
+    }
+    #providerSettings::backdrop { background: #0c141cc4; }
+    .settings-header {
+      position: sticky; top: 0; z-index: 10;
+      display: flex; align-items: center; justify-content: space-between;
+      padding: .85rem 1.1rem; background: var(--surface);
+      border-bottom: 1px solid var(--line);
+    }
+    .settings-header h2 { margin: 0; }
+    .settings-body { padding: 1rem 1.1rem 1.4rem; display: grid; gap: 1rem; }
+    .privacy-notice {
+      padding: .65rem .85rem; border-radius: var(--radius-sm);
+      background: var(--warn-bg); color: var(--warn-ink);
+      border: 1px solid #e8d09060; font-size: .84rem;
+    }
+    fieldset {
+      border: 1.5px solid var(--line); border-radius: var(--radius-sm);
+      padding: .8rem 1rem 1rem; margin: 0;
+    }
+    legend { font-weight: 700; padding: 0 .4rem; font-size: .9rem; }
+
+    /* ═══════════════════════════════════════════
+       SESSIONS & DATA PANEL
+    ═══════════════════════════════════════════ */
+    #sessionsPanel {
+      width: min(97vw, 480px); max-height: 94vh; overflow-y: auto;
+      padding: 0; border: 0; border-radius: var(--radius); overflow-x: hidden;
+    }
+    #sessionsPanel::backdrop { background: #0c141cc4; }
+    .panel-header {
+      position: sticky; top: 0; z-index: 10;
+      display: flex; align-items: center; justify-content: space-between;
+      padding: .85rem 1.1rem; background: var(--surface);
+      border-bottom: 1px solid var(--line);
+    }
+    .panel-header h2 { margin: 0; }
+    .panel-body { padding: 1rem 1.1rem 1.4rem; display: grid; gap: 1rem; }
+    .danger-zone {
+      border: 1.5px solid #f1c5c2; border-radius: var(--radius-sm);
+      padding: .8rem 1rem;
+    }
+    .danger-zone h3 { margin: 0 0 .5rem; font-size: .9rem; color: var(--danger); }
+
+    /* ═══════════════════════════════════════════
+       STATUSLINE
+    ═══════════════════════════════════════════ */
+    .statusline { font-size: .84rem; color: var(--muted); min-height: 1.2em; }
+    .statusline.ok { color: var(--success-ink); }
+    .statusline.err { color: var(--danger); }
+
+    /* ═══════════════════════════════════════════
+       FOOTER
+    ═══════════════════════════════════════════ */
+    footer { padding: 1.2rem 0 2.5rem; color: var(--muted); font-size: .82rem; text-align: center; }
+
+    /* ═══════════════════════════════════════════
+       ANIMATIONS
+    ═══════════════════════════════════════════ */
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .spinner {
+      display: inline-block; width: 14px; height: 14px;
+      border: 2px solid #c0a060; border-top-color: transparent;
+      border-radius: 50%; animation: spin .7s linear infinite;
+      flex-shrink: 0;
+    }
+
+    /* ═══════════════════════════════════════════
+       SKIP LINK
+    ═══════════════════════════════════════════ */
+    .skip-link {
+      position: absolute; top: -100%; left: 0; padding: .5rem 1rem;
+      background: var(--accent); color: #fff; border-radius: 0 0 8px 0; z-index: 999;
+    }
+    .skip-link:focus { top: 0; }
+    .sr-only {
+      position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+      overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0;
+    }
+
+    /* ═══════════════════════════════════════════
+       RESPONSIVE
+    ═══════════════════════════════════════════ */
+    @media (min-width: 580px) {
+      .shell { padding: 1.4rem; }
+      .model-grid { grid-template-columns: repeat(2, 1fr); }
+      .attempt-card { flex: 0 0 260px; }
+      .attempt-img { height: 240px; }
+    }
+    @media (min-width: 900px) {
+      .model-grid { grid-template-columns: repeat(2, 1fr); }
+      .images-row { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+      .settings-body .col2 { grid-template-columns: 1fr 1fr; }
+    }
+    @media (max-width: 579px) {
+      .action-bar .bar-left { min-width: 0; overflow: hidden; }
+      /* On mobile, dialog sheets from bottom */
+      #sessionsPanel, #providerSettings, #confirmDialog {
+        margin: auto auto 0; border-bottom-left-radius: 0; border-bottom-right-radius: 0;
+        width: 100%;
+      }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { transition-duration: .01ms !important; animation-duration: .01ms !important; }
+    }
+
+    /* ═══════════════════════════════════════════
+       FEATURES (evaluation, export) — hidden when flag=false
+       Controlled via JS, not CSS, so FEATURES.evaluation===false
+       sets display:none on these containers.
+    ═══════════════════════════════════════════ */
+    .feat-evaluation, .feat-export { /* styled but hidden by JS */ }
+  </style>
+</head>
+<body>
+  <a href="#main-content" class="skip-link">Aller au contenu principal</a>
+
+  <!-- ═══════════════════════════════════════════
+       STICKY ACTION BAR
+  ═══════════════════════════════════════════ -->
+  <div class="action-bar" role="banner">
+    <div class="bar-left">
+      <span class="brand" aria-hidden="true">👗</span>
+      <span class="session-pill" id="currentSessionPill" aria-live="polite">Aucune session</span>
+    </div>
+    <div class="bar-right">
+      <button type="button" id="openSessionsBtn" class="ghost" aria-haspopup="dialog">
+        <span aria-hidden="true">📂</span> Sessions
+      </button>
+      <button type="button" id="openSettingsBtn" class="ghost" aria-haspopup="dialog">
+        <span aria-hidden="true">⚙️</span> <span class="sr-only">Configurer les fournisseurs</span><span aria-hidden="true">Config.</span>
+      </button>
+      <button type="button" id="generateAllBtn" class="primary" disabled aria-disabled="true">
+        <span class="spinner" id="genAllSpinner" hidden aria-hidden="true"></span>
+        <span aria-hidden="true">▶</span> Générer tout
+      </button>
+    </div>
+  </div>
+
+  <main class="shell" id="main-content">
+
+    <!-- HTTPS WARNING -->
+    <div id="httpsWarning" role="alert">
+      ⚠️ Cette page doit être servie en <strong>HTTPS</strong> ou depuis <strong>localhost</strong> pour accéder à la caméra et aux API des fournisseurs.
+    </div>
+
+    <header class="app-header">
+      <div>
+        <div class="brand">VTO Lab · prototype</div>
+        <h1 class="app-title">Comparer des rendus de vêtements</h1>
+        <p class="app-subtitle">Sandbox de recherche — résultats non contractuels.</p>
+      </div>
+      <span class="badge" aria-label="Données stockées uniquement dans ce navigateur">🔒 Stockage local</span>
+    </header>
+
+    <!-- ═══════════════════════════════════════════
+         SECTION 1 : PHOTOS + VÊTEMENT
+    ═══════════════════════════════════════════ -->
+    <section class="card" aria-labelledby="photos-heading">
+      <h2 id="photos-heading">1. Photos et vêtement</h2>
+
+      <!-- État vide premier lancement -->
+      <div id="emptyState" class="steps-empty" aria-label="Étapes pour démarrer">
+        <div class="step-item" id="step1" data-step="1">
+          <div class="step-num">1</div>
+          <div class="step-text"><strong>Ajoutez les photos</strong> — personne et vêtement</div>
+        </div>
+        <div class="step-item" id="step2" data-step="2">
+          <div class="step-num">2</div>
+          <div class="step-text"><strong>Configurez un modèle</strong> — bouton Config. en haut</div>
+        </div>
+        <div class="step-item" id="step3" data-step="3">
+          <div class="step-num">3</div>
+          <div class="step-text"><strong>Générez</strong> — Générer tout ou par modèle</div>
+        </div>
+      </div>
+
+      <!-- Images row -->
+      <div class="images-row" style="margin-top:.85rem;">
+        <!-- Personne -->
+        <div class="upload-zone" aria-label="Photo de la personne">
+          <div class="upload-label">👤 Personne</div>
+          <p class="upload-hint">JPEG / PNG · 7 Mo max (Google) · WebP converti automatiquement</p>
+          <div class="upload-preview-wrap" id="personPreviewWrap">
+            <img class="upload-preview" id="personPreview" alt="Aperçu de la photo de la personne">
+            <button class="upload-clear" id="personClear" type="button" aria-label="Supprimer la photo de la personne" title="Supprimer">✕</button>
+          </div>
+          <div class="upload-actions">
+            <label style="font-weight:400">
+              <input id="personFile" type="file" accept="image/*" class="sr-only" aria-label="Choisir une photo de la personne dans la galerie">
+              <span class="button-like" id="personGalleryBtn" role="button" tabindex="0"
+                style="display:inline-flex;align-items:center;gap:.35rem;border:1.5px solid var(--line);border-radius:var(--radius-sm);padding:.4rem .7rem;background:var(--surface);cursor:pointer;font-size:.82rem;font-weight:600;min-height:36px;">
+                🖼️ Galerie
+              </span>
+            </label>
+            <button id="personCamera" type="button">📷 Caméra</button>
+          </div>
+        </div>
+
+        <!-- Vêtement -->
+        <div class="upload-zone" aria-label="Photo du vêtement">
+          <div class="upload-label">👕 Vêtement</div>
+          <p class="upload-hint">JPEG / PNG · 7 Mo max (Google) · WebP converti automatiquement</p>
+          <div class="upload-preview-wrap" id="productPreviewWrap">
+            <img class="upload-preview" id="productPreview" alt="Aperçu de la photo du vêtement">
+            <button class="upload-clear" id="productClear" type="button" aria-label="Supprimer la photo du vêtement" title="Supprimer">✕</button>
+          </div>
+          <div class="upload-actions">
+            <label style="font-weight:400">
+              <input id="productFile" type="file" accept="image/*" class="sr-only" aria-label="Choisir une photo du vêtement dans la galerie">
+              <span class="button-like" id="productGalleryBtn" role="button" tabindex="0"
+                style="display:inline-flex;align-items:center;gap:.35rem;border:1.5px solid var(--line);border-radius:var(--radius-sm);padding:.4rem .7rem;background:var(--surface);cursor:pointer;font-size:.82rem;font-weight:600;min-height:36px;">
+                🖼️ Galerie
+              </span>
+            </label>
+            <button id="productCamera" type="button">📷 Caméra</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Garment config -->
+      <div class="config-section" style="margin-top:.85rem;">
+        <div class="grid col2" style="gap:.7rem;">
+          <label>Type de vêtement
+            <select id="garmentType">
+              <option value="T-shirt">T-shirt</option>
+              <option value="Polo">Polo</option>
+              <option value="Chemise">Chemise</option>
+              <option value="Blouse">Blouse</option>
+              <option value="Pull">Pull</option>
+              <option value="Sweat">Sweat</option>
+              <option value="Cardigan">Cardigan</option>
+              <option value="Veste">Veste</option>
+              <option value="Manteau">Manteau</option>
+              <option value="Robe">Robe</option>
+              <option value="Jupe">Jupe</option>
+              <option value="Pantalon">Pantalon</option>
+              <option value="Jean">Jean</option>
+              <option value="Short">Short</option>
+              <option value="Combinaison">Combinaison</option>
+              <option value="Débardeur">Débardeur</option>
+            </select>
+          </label>
+          <div id="referenceWrap">
+            <label>Référence (facultative)
+              <input id="reference" maxlength="100" placeholder="Référence produit" autocomplete="off">
+            </label>
+          </div>
+        </div>
+        <div id="colorWrap">
+          <label>Couleur
+            <input id="color" maxlength="80" placeholder="Ex. bleu marine" autocomplete="off">
+          </label>
+        </div>
+        <div id="storageStatus" class="statusline" role="status" aria-live="polite"></div>
+      </div>
+    </section>
+
+    <!-- ═══════════════════════════════════════════
+         SECTION 2 : GÉNÉRATION & COMPARAISON
+    ═══════════════════════════════════════════ -->
+    <section class="card" aria-labelledby="generation-heading" style="margin-top:.9rem;">
+      <div class="row apart" style="margin-bottom:.6rem;">
+        <h2 id="generation-heading" style="margin:0;">2. Génération et comparaison</h2>
+      </div>
+
+      <!-- Prérequis -->
+      <div class="prereqs" id="prereqsRow" aria-label="Prérequis" role="status" aria-live="polite"></div>
+
+      <p class="hint" style="margin-bottom:.7rem;">Chaque relance est une nouvelle tentative et peut entraîner un coût fournisseur.</p>
+
+      <!-- Model cards -->
+      <div class="model-grid" id="modelCards" aria-label="Modèles disponibles"></div>
+
+      <p id="generationStatus" class="gen-status" role="status" aria-live="polite" style="margin-top:.5rem;"></p>
+
+      <!-- Renders grouped by model -->
+      <div class="renders-section" id="rendersSection">
+        <div class="renders-title">
+          <h3>Rendus de ce cas</h3>
+        </div>
+        <!-- Source thumbnails -->
+        <div class="source-thumbs" id="sourceThumbs" hidden aria-label="Sources utilisées"></div>
+        <!-- Groups per model -->
+        <div id="rendersGroups" aria-live="polite" aria-label="Rendus regroupés par modèle"></div>
+        <p id="rendersEmpty" class="muted" style="color:var(--muted);font-size:.88rem;" hidden>Aucun rendu réussi. Les échecs et refus sont dans l'historique.</p>
+      </div>
+
+      <!-- History (collapsed) -->
+      <div class="history-wrap" id="historyWrap">
+        <details>
+          <summary id="historyToggle">Historique complet des tentatives</summary>
+          <div class="history-list" id="historyList" role="list"></div>
+        </details>
+      </div>
+    </section>
+
+    <!-- FEATURES: evaluation section (hidden when flag=false) -->
+    <section class="card feat-evaluation feat-export" id="evalExportSection" aria-labelledby="eval-heading" style="margin-top:.9rem;">
+      <h2 id="eval-heading">3. Conservation des données</h2>
+      <div class="row" style="flex-wrap:wrap;gap:.6rem;">
+        <label class="grow" style="flex:1 1 160px;">Durée de conservation (jours)
+          <input id="retentionDays" type="number" min="1" max="3650" value="30">
+        </label>
+        <button id="saveRetentionBtn" type="button" style="align-self:flex-end;">Enregistrer</button>
+        <button id="exportBtn" type="button" class="feat-export" disabled>Exporter Markdown</button>
+      </div>
+      <p class="hint">Purge effectuée à l'ouverture de la page. Aucune suppression garantie si le navigateur est fermé.</p>
+      <div id="globalStatus" class="statusline" role="status" aria-live="polite"></div>
+    </section>
+
+    <!-- Non-eval: retention only section (shown when eval=false) -->
+    <section class="card" id="retentionOnlySection" aria-labelledby="retention-heading" style="margin-top:.9rem;" hidden>
+      <h2 id="retention-heading">3. Conservation des données</h2>
+      <div class="row" style="flex-wrap:wrap;gap:.6rem;">
+        <label class="grow" style="flex:1 1 160px;">Durée de conservation (jours)
+          <input id="retentionDays2" type="number" min="1" max="3650" value="30">
+        </label>
+        <button id="saveRetentionBtn2" type="button" style="align-self:flex-end;">Enregistrer</button>
+      </div>
+      <p class="hint">Purge effectuée à l'ouverture de la page.</p>
+      <div id="globalStatus2" class="statusline" role="status" aria-live="polite"></div>
+    </section>
+
+    <footer>Prototype réservé aux essais locaux — ne saisissez pas d'identifiants durables ou sensibles.</footer>
+  </main>
+
+  <!-- ═══════════════════════════════════════════
+       LIGHTBOX / VISIONNEUSE
+  ═══════════════════════════════════════════ -->
+  <dialog id="lightbox" aria-label="Visionneuse de rendu" aria-modal="true">
+    <div class="lightbox-bar">
+      <div>
+        <div class="lightbox-title" id="lightboxTitle">Rendu</div>
+        <div class="lightbox-meta" id="lightboxMeta"></div>
+      </div>
+      <button id="closeLightbox" type="button" class="ghost" style="color:#c0d4e4;border-color:#364860;" aria-label="Fermer la visionneuse">✕ Fermer</button>
+    </div>
+    <img id="lightboxImage" alt="Rendu généré agrandi" src="">
+    <div class="lightbox-nav">
+      <button id="lightboxPrev" type="button" aria-label="Rendu précédent">← Préc.</button>
+      <span id="lightboxCounter" style="color:#6e8a9e;font-size:.82rem;"></span>
+      <button id="lightboxNext" type="button" aria-label="Rendu suivant">Suiv. →</button>
+    </div>
+    <div class="lightbox-source-row" id="lightboxSources"></div>
+  </dialog>
+
+  <!-- ═══════════════════════════════════════════
+       CAMERA DIALOG
+  ═══════════════════════════════════════════ -->
+  <dialog id="cameraDialog" aria-labelledby="cameraTitle" aria-modal="true">
+    <div class="camera-header">
+      <h2 id="cameraTitle">Prendre une photo</h2>
+      <button id="closeCameraBtn" type="button" class="ghost" aria-label="Fermer la caméra">✕</button>
+    </div>
+    <div class="camera-body">
+      <div id="cameraSelectWrap">
+        <select id="cameraDeviceSelect" aria-label="Choisir une caméra"></select>
+        <button id="cameraFacingBtn" type="button" title="Basculer caméra avant/arrière">🔄 Retourner</button>
+      </div>
+      <video id="cameraVideo" autoplay playsinline muted aria-label="Flux caméra en direct"></video>
+      <div id="cameraPreviewWrap" aria-label="Aperçu de la photo prise">
+        <img id="cameraPreview" alt="Aperçu avant validation">
+      </div>
+      <p id="cameraStatus" role="status" aria-live="polite"></p>
+    </div>
+    <div class="camera-footer">
+      <button id="captureCameraBtn" class="primary" type="button" disabled>📸 Prendre la photo</button>
+      <button id="retakeCameraBtn" type="button" hidden>↩ Reprendre</button>
+      <button id="confirmCameraBtn" class="primary" type="button" hidden>✓ Utiliser cette photo</button>
+    </div>
+  </dialog>
+
+  <!-- ═══════════════════════════════════════════
+       CONFIRM DIALOG (réutilisable)
+  ═══════════════════════════════════════════ -->
+  <dialog id="confirmDialog" aria-modal="true" aria-labelledby="confirmTitle">
+    <div class="dlg-header">
+      <h2 id="confirmTitle"></h2>
+    </div>
+    <div class="dlg-body">
+      <p id="confirmMessage"></p>
+    </div>
+    <div class="dlg-footer">
+      <button id="confirmCancelBtn" type="button">Annuler</button>
+      <button id="confirmOkBtn" type="button" class="primary"></button>
+    </div>
+  </dialog>
+
+  <!-- ═══════════════════════════════════════════
+       PROVIDER SETTINGS DIALOG
+  ═══════════════════════════════════════════ -->
+  <dialog id="providerSettings" aria-labelledby="providerSettingsTitle" aria-modal="true">
+    <div class="settings-header">
+      <h2 id="providerSettingsTitle">Configuration des fournisseurs</h2>
+      <button id="closeSettingsBtn" type="button" class="ghost" aria-label="Fermer la configuration">✕</button>
+    </div>
+    <div class="settings-body">
+      <div class="privacy-notice" role="note">
+        🔒 Les identifiants saisis ici sont conservés <strong>uniquement en mémoire</strong> (jamais dans le stockage local ou les journaux). Privilegiez des jetons temporaires et révocables. Les images et identifiants sont envoyés directement au fournisseur configuré ; un proxy peut être défini via l'URL de base.
+      </div>
+      <fieldset>
+        <legend>Google Virtual Try-On 001</legend>
+        <div class="grid" style="gap:.7rem;">
+          <label>Jeton d'accès Google
+            <input id="googleToken" type="password" autocomplete="off" spellcheck="false" aria-describedby="googleToken-hint">
+            <small id="googleToken-hint">Jeton Bearer temporaire (gcloud auth print-access-token)</small>
+          </label>
+          <div class="grid col2" style="gap:.7rem;">
+            <label>Projet GCP
+              <input id="googleProject" autocomplete="off" placeholder="mon-projet-123">
+            </label>
+            <label>Région
+              <input id="googleRegion" value="us-central1" autocomplete="off">
+            </label>
+          </div>
+          <label>URL de base ou proxy (facultatif)
+            <input id="googleBaseUrl" placeholder="https://us-central1-aiplatform.googleapis.com/v1" autocomplete="off">
+          </label>
+        </div>
+      </fieldset>
+      <fieldset>
+        <legend>OpenAI GPT-Image · retouche</legend>
+        <div class="grid" style="gap:.7rem;">
+          <label>Clé API
+            <input id="openaiKey" type="password" autocomplete="off" spellcheck="false">
+          </label>
+          <div class="grid col2" style="gap:.7rem;">
+            <label>Nom exact du modèle
+              <input id="openaiModel" value="gpt-image-2.6-sunburst" autocomplete="off">
+              <small>Valeur initiale selon la documentation consultée ; modifiable selon l'accès du compte.</small>
+            </label>
+            <label>URL de base ou proxy (facultatif)
+              <input id="openaiBaseUrl" value="https://api.openai.com/v1" autocomplete="off">
+            </label>
+          </div>
+          <label>Prompt d'édition envoyé à OpenAI
+            <textarea id="openaiPrompt">Habille la personne de la photo avec le vêtement présenté dans la seconde image. Conserve l'identité, la pose, le visage, les proportions, le décor et l'éclairage de la personne. Reproduis fidèlement le type, la coupe et la couleur du vêtement. Ne modifie rien d'autre. Ce rendu est une visualisation, pas une recommandation de taille.</textarea>
+          </label>
+        </div>
+      </fieldset>
+    </div>
+  </dialog>
+
+  <!-- ═══════════════════════════════════════════
+       SESSIONS & DATA PANEL
+  ═══════════════════════════════════════════ -->
+  <dialog id="sessionsPanel" aria-labelledby="sessionsPanelTitle" aria-modal="true">
+    <div class="panel-header">
+      <h2 id="sessionsPanelTitle">Sessions et données</h2>
+      <button id="closeSessionsBtn" type="button" class="ghost" aria-label="Fermer le panneau sessions">✕</button>
+    </div>
+    <div class="panel-body">
+      <label>Session
+        <select id="sessionSelect" aria-label="Choisir une session"></select>
+      </label>
+      <label>Cas (version)
+        <select id="caseSelect" aria-label="Choisir une version du cas"></select>
+      </label>
+      <div class="row" style="flex-wrap:wrap;gap:.5rem;">
+        <button id="newSessionBtn" type="button">+ Nouvel essai</button>
+      </div>
+      <p class="hint">Une session est créée automatiquement à la première génération. Les modifications de paramètres créent une nouvelle version sans écraser les essais précédents.</p>
+      <hr style="border:0;border-top:1px solid var(--line);margin:.2rem 0;">
+      <div class="danger-zone">
+        <h3>Zone de suppression</h3>
+        <div class="grid" style="gap:.5rem;">
+          <button id="deleteSessionBtn" type="button" class="danger" disabled>Supprimer cette session</button>
+          <button id="deleteAllBtn" type="button" class="danger">Tout supprimer</button>
+        </div>
+      </div>
+      <div id="sessionStatus" class="statusline" role="status" aria-live="polite"></div>
+    </div>
+  </dialog>
+
+  <!-- EVALUATION DIALOG (feature-flagged) -->
+  <dialog id="evaluationDialog" aria-labelledby="evalDialogTitle" aria-modal="true" class="feat-evaluation">
+    <div class="settings-header">
+      <h2 id="evalDialogTitle">Évaluer la tentative</h2>
+      <button id="closeEvalBtn" type="button" class="ghost" aria-label="Fermer l'évaluation">✕</button>
+    </div>
+    <div class="settings-body" id="evalDialogBody"></div>
+  </dialog>
+
+  <!-- ═══════════════════════════════════════════
+       SCRIPT
+  ═══════════════════════════════════════════ -->
+  <script>
+    "use strict";
+
+    /* ══════════════════════════════════════════
+       FEATURE FLAGS
+    ══════════════════════════════════════════ */
+    const FEATURES = { evaluation: false, exportMarkdown: false };
+
+    const UI = {
+      generateAll: false,  // bouton Générer tout + spinner
+      sessions:    false,  // bouton Sessions dans la barre
+      retention:   false,  // section Conservation des données
+      emptySteps:  false,  // bloc 3 étapes état vide
+      reference:   false,  // champ Référence vêtement
+      color:       false   // champ Couleur
+    };
+
+    /* ══════════════════════════════════════════
+       CONSTANTS
+    ══════════════════════════════════════════ */
+    const DB_NAME    = "vto-sandbox";
+    const DB_VERSION = 1;
+    const RATING_SCALE = [1, 2, 3, 4, 5];
+    const MAX_GOOGLE_IMAGE_BYTES = 7 * 1_000_000;
+    const MAX_OPENAI_DATA_URL_CHARS = 20 * 1024 * 1024;
+    const GARMENT_TYPES = [
+      "T-shirt","Polo","Chemise","Blouse","Pull","Sweat","Cardigan",
+      "Veste","Manteau","Robe","Jupe","Pantalon","Jean","Short","Combinaison","Débardeur"
+    ];
+    const KNOWN_MODELS = ["google-vto", "openai-image"];
+
+    /* ══════════════════════════════════════════
+       MODEL REGISTRY
+    ══════════════════════════════════════════ */
+    const models = [
+      {
+        id: "google-vto",
+        label: "Google Virtual Try-On",
+        version: "virtual-try-on-001",
+        requiresCostConfirmation: true,
+        capabilities: { acceptsPrompt: false, maxImageBytes: MAX_GOOGLE_IMAGE_BYTES, formats: ["image/jpeg","image/png"] },
+        isAvailable: cfg => Boolean(cfg.googleToken && cfg.googleProject && cfg.googleRegion),
+        generate: generateGoogle
+      },
+      {
+        id: "openai-image",
+        label: "OpenAI GPT-Image",
+        version: "configurable",
+        requiresCostConfirmation: true,
+        capabilities: { acceptsPrompt: true, maxImageBytes: Infinity, formats: ["image/jpeg","image/png","image/webp"] },
+        isAvailable: cfg => Boolean(cfg.openaiKey && cfg.openaiModel && cfg.openaiPrompt?.trim()),
+        generate: generateOpenAI
+      }
+    ];
+
+    /* ══════════════════════════════════════════
+       HELPERS
+    ══════════════════════════════════════════ */
+    const $ = id => document.getElementById(id);
+    function uid() {
+      return typeof crypto.randomUUID === "function"
+        ? crypto.randomUUID()
+        : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+    }
+    function esc(value) {
+      return String(value ?? "").replace(/[&<>"']/g, c =>
+        ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c]));
+    }
+    function fmtDate(ts) { return new Date(ts).toLocaleString("fr-FR"); }
+    function fmtMs(ms) {
+      if (ms == null) return "—";
+      if (ms < 1000) return `${Math.round(ms)} ms`;
+      return `${(ms / 1000).toFixed(1)} s`;
+    }
+
+    /* ══════════════════════════════════════════
+       STATE
+    ══════════════════════════════════════════ */
+    const state = {
+      db: null,
+      sessions: [], cases: [],
+      sessionId: null, caseId: null,
+      previewUrls: [],
+      capturedImages: { person: null, product: null },
+      cameraStream: null, cameraRequest: 0, cameraTarget: null,
+      cameraPreviewBlob: null,
+      runningControllers: {},     // modelId -> AbortController
+      runningTimers:     {},      // modelId -> intervalId
+      lightboxAttemptIds: [],     // ordered list for prev/next
+      lightboxCurrentIdx: 0
+    };
+    const labelsByStatus = {
+      running:"En cours", success:"Réussite", failed:"Échec", refused:"Refusé"
+    };
+
+    /* ══════════════════════════════════════════
+       FEATURES VISIBILITY
+    ══════════════════════════════════════════ */
+    function applyFeatureFlags() {
+      const hideAll = selector => {
+        document.querySelectorAll(selector).forEach(el => {
+          el.hidden = true;
+          el.setAttribute("aria-hidden","true");
+          el.querySelectorAll("a,button,input,select,textarea,[tabindex]").forEach(f => {
+            f.setAttribute("tabindex","-1");
+            f.setAttribute("aria-hidden","true");
+          });
+        });
+      };
+
+      if (!FEATURES.evaluation) hideAll(".feat-evaluation");
+      if (!FEATURES.exportMarkdown) hideAll(".feat-export");
+
+      // Switch between dual section and retention-only
+      if (!UI.retention) {
+        $("evalExportSection").hidden = true;
+        $("retentionOnlySection").hidden = true;
+      } else if (!FEATURES.evaluation && !FEATURES.exportMarkdown) {
+        $("evalExportSection").hidden = true;
+        $("retentionOnlySection").hidden = false;
+      } else {
+        $("evalExportSection").hidden = false;
+        $("retentionOnlySection").hidden = true;
+      }
+    }
+
+    function applyUIFlags() {
+      const hideAll = selector => {
+        document.querySelectorAll(selector).forEach(el => {
+          el.hidden = true;
+          el.setAttribute("aria-hidden","true");
+          el.querySelectorAll("a,button,input,select,textarea,[tabindex]").forEach(f => {
+            f.setAttribute("tabindex","-1");
+            f.setAttribute("aria-hidden","true");
+          });
+        });
+      };
+
+      if (!UI.generateAll) hideAll("#generateAllBtn");
+      if (!UI.sessions) {
+        hideAll("#openSessionsBtn");
+        hideAll("#currentSessionPill");
+        hideAll("#sessionsPanel");
+      }
+      if (!UI.retention) {
+        hideAll("#retentionOnlySection");
+        hideAll("#evalExportSection");
+      }
+      if (!UI.emptySteps) hideAll("#emptyState");
+      if (!UI.reference) {
+        hideAll("#referenceWrap");
+        const grid = $("referenceWrap")?.closest(".grid.col2");
+        if (grid) grid.style.gridTemplateColumns = "1fr";
+      }
+      if (!UI.color) hideAll("#colorWrap");
+    }
+
+    /* ══════════════════════════════════════════
+       STATUS HELPERS
+    ══════════════════════════════════════════ */
+    function setStatus(el, msg, isError = false) {
+      if (!el) return;
+      el.textContent = msg;
+      el.className = "statusline" + (isError ? " err" : msg ? " ok" : "");
+    }
+    function setGlobalStatus(msg, isError = false) {
+      setStatus($("globalStatus"), msg, isError);
+      setStatus($("globalStatus2"), msg, isError);
+    }
+    function reportStorageError(err) {
+      const msg = err?.name === "QuotaExceededError"
+        ? "Espace de stockage insuffisant. Supprimez des sessions."
+        : `Erreur de stockage : ${err?.message || "opération impossible"}`;
+      setStatus($("storageStatus"), msg, true);
+      setGlobalStatus(msg, true);
+    }
+
+    /* ══════════════════════════════════════════
+       CONFIRM DIALOG (custom, no native confirm/alert/prompt)
+    ══════════════════════════════════════════ */
+    let _confirmResolve = null;
+    let _confirmOrigin = null;
+
+    function confirmDialog({ title, message, okLabel = "Confirmer", danger = false }) {
+      return new Promise(resolve => {
+        _confirmResolve = resolve;
+        _confirmOrigin = document.activeElement;
+        $("confirmTitle").textContent = title;
+        $("confirmMessage").textContent = message;
+        const ok = $("confirmOkBtn");
+        ok.textContent = okLabel;
+        ok.className = danger ? "danger" : "primary";
+        $("confirmDialog").showModal();
+        $("confirmOkBtn").focus();
+      });
+    }
+    function _confirmClose(result) {
+      $("confirmDialog").close();
+      const resolve = _confirmResolve;
+      _confirmResolve = null;
+      if (_confirmOrigin && typeof _confirmOrigin.focus === "function") {
+        try { _confirmOrigin.focus(); } catch {}
+        _confirmOrigin = null;
+      }
+      if (resolve) resolve(result);
+    }
+
+    /* ══════════════════════════════════════════
+       INDEXEDDB
+    ══════════════════════════════════════════ */
+    function openDatabase() {
+      return new Promise((resolve, reject) => {
+        let req;
+        try { req = indexedDB.open(DB_NAME, DB_VERSION); }
+        catch (e) { reject(e); return; }
+        req.onupgradeneeded = () => {
+          const db = req.result;
+          if (!db.objectStoreNames.contains("sessions")) db.createObjectStore("sessions",{keyPath:"id"});
+          if (!db.objectStoreNames.contains("cases")) {
+            const s = db.createObjectStore("cases",{keyPath:"id"});
+            s.createIndex("sessionId","sessionId",{unique:false});
+          }
+          if (!db.objectStoreNames.contains("settings")) db.createObjectStore("settings",{keyPath:"id"});
+        };
+        req.onsuccess = () => resolve(req.result);
+        req.onerror  = () => reject(req.error || new Error("IndexedDB indisponible"));
+        req.onblocked= () => reject(new Error("IndexedDB bloquée par un autre onglet."));
+      });
+    }
+    function txDone(tx) {
+      return new Promise((resolve,reject) => {
+        tx.oncomplete = () => resolve();
+        tx.onerror    = () => reject(tx.error || new Error("Échec de transaction"));
+        tx.onabort    = () => reject(tx.error || new Error("Transaction annulée"));
+      });
+    }
+    function reqResult(req) {
+      return new Promise((resolve,reject) => {
+        req.onsuccess = () => resolve(req.result);
+        req.onerror   = () => reject(req.error || new Error("Échec IndexedDB"));
+      });
+    }
+    async function readAll(store) {
+      const tx = state.db.transaction(store,"readonly");
+      const res = await reqResult(tx.objectStore(store).getAll());
+      await txDone(tx);
+      return res;
+    }
+    async function putRecord(store, record) {
+      const tx = state.db.transaction(store,"readwrite");
+      tx.objectStore(store).put(record);
+      await txDone(tx);
+    }
+    async function persistCaseActivity(item) {
+      const session = state.sessions.find(s => s.id === item.sessionId);
+      const stores = session ? ["cases","sessions"] : ["cases"];
+      const tx = state.db.transaction(stores,"readwrite");
+      tx.objectStore("cases").put(item);
+      if (session) { session.updatedAt = Date.now(); tx.objectStore("sessions").put(session); }
+      await txDone(tx);
+    }
+    async function removeSessionRecords(sessionId) {
+      const tx = state.db.transaction(["sessions","cases"],"readwrite");
+      tx.objectStore("sessions").delete(sessionId);
+      const idx = tx.objectStore("cases").index("sessionId");
+      const cr = idx.openKeyCursor(IDBKeyRange.only(sessionId));
+      cr.onsuccess = () => {
+        const cursor = cr.result;
+        if (cursor) { tx.objectStore("cases").delete(cursor.primaryKey); cursor.continue(); }
+      };
+      await txDone(tx);
+    }
+    async function clearAllRecords() {
+      const tx = state.db.transaction(["sessions","cases","settings"],"readwrite");
+      ["sessions","cases","settings"].forEach(s => tx.objectStore(s).clear());
+      await txDone(tx);
+    }
+
+    /* ══════════════════════════════════════════
+       STATE LOAD & SELECTORS
+    ══════════════════════════════════════════ */
+    async function loadState() {
+      state.sessions = (await readAll("sessions")).sort((a,b) => b.createdAt - a.createdAt);
+      state.cases    = await readAll("cases");
+      if (!state.sessions.some(s => s.id === state.sessionId))
+        state.sessionId = state.sessions[0]?.id || null;
+      const sc = state.cases.filter(c => c.sessionId === state.sessionId).sort((a,b)=>b.version-a.version);
+      if (!sc.some(c => c.id === state.caseId)) state.caseId = sc[0]?.id || null;
+      renderSelectors();
+      populateCaseForm(activeCase());
+      renderAllModels();
+      renderRendersSection();
+      renderHistory();
+    }
+
+    function activeCase()    { return state.cases.find(c => c.id === state.caseId) || null; }
+    function activeSession() { return state.sessions.find(s => s.id === state.sessionId) || null; }
+
+    function renderSelectors() {
+      // Session select (in panel)
+      $("sessionSelect").innerHTML = state.sessions.length
+        ? state.sessions.map(s =>
+            `<option value="${esc(s.id)}">${esc(s.name)} · ${new Date(s.createdAt).toLocaleDateString("fr-FR")}</option>`
+          ).join("")
+        : '<option value="">Aucune session</option>';
+      $("sessionSelect").value = state.sessionId || "";
+
+      // Case select
+      const items = state.cases.filter(c => c.sessionId === state.sessionId).sort((a,b)=>b.version-a.version);
+      $("caseSelect").innerHTML = items.length
+        ? items.map(c =>
+            `<option value="${esc(c.id)}">v${c.version} · ${esc(c.garmentType)} · ${esc(c.reference||"Sans réf.")} · ${esc(c.color||"—")}</option>`
+          ).join("")
+        : '<option value="">Aucun cas</option>';
+      $("caseSelect").value = state.caseId || "";
+
+      // Session pill in action bar
+      const sess = activeSession();
+      $("currentSessionPill").textContent = sess
+        ? `${sess.name} · v${state.cases.filter(c=>c.sessionId===state.sessionId).reduce((mx,c)=>Math.max(mx,c.version),0)}`
+        : "Aucune session";
+
+      if (!UI.sessions) {
+        $("currentSessionPill").hidden = true;
+        $("openSessionsBtn").hidden = true;
+      }
+
+      // Buttons
+      $("deleteSessionBtn").disabled = !state.sessionId;
+      updateGenerateAllBtn();
+    }
+
+    /* ══════════════════════════════════════════
+       EMPTY STATE STEPS
+    ══════════════════════════════════════════ */
+    function updateEmptyState() {
+      if (!UI.emptySteps) {
+        $("emptyState").hidden = true;
+        return;
+      }
+      const hasPhotos = hasPersonImage() && hasProductImage();
+      const hasModel  = models.some(m => m.isAvailable(currentConfig()));
+      const hasCase   = !!activeCase();
+
+      $("emptyState").hidden = hasCase; // hide once we have a case
+      markStep(1, hasPhotos);
+      markStep(2, hasModel);
+      markStep(3, hasCase);
+    }
+    function markStep(n, done) {
+      const el = $(`step${n}`);
+      if (!el) return;
+      el.classList.toggle("done", done);
+      el.querySelector(".step-num").textContent = done ? "✓" : String(n);
+    }
+    function hasPersonImage()  { return !!(state.capturedImages.person  || $("personFile").files?.[0]  || activeCase()?.personImage); }
+    function hasProductImage() { return !!(state.capturedImages.product || $("productFile").files?.[0] || activeCase()?.productImage); }
+
+    /* ══════════════════════════════════════════
+       GENERATE ALL BUTTON STATE
+    ══════════════════════════════════════════ */
+    function updateGenerateAllBtn() {
+      if (!UI.generateAll) {
+        $("generateAllBtn").hidden = true;
+      }
+      const btn = $("generateAllBtn");
+      const hasPhotos = hasPersonImage() && hasProductImage();
+      const hasModel  = models.some(m => m.isAvailable(currentConfig()));
+      const enabled   = hasPhotos && hasModel && !!state.db;
+      btn.disabled = !enabled;
+      btn.setAttribute("aria-disabled", String(!enabled));
+      renderPrereqs(hasPhotos, hasModel);
+      updateEmptyState();
+    }
+
+    function renderPrereqs(hasPhotos, hasModel) {
+      const p = $("prereqsRow");
+      const item = (ok, label) =>
+        `<span class="prereq ${ok?'ok':'missing'}" aria-label="${ok?'✓':'✗'} ${label}">${ok?'✓':'✗'} ${esc(label)}</span>`;
+      p.innerHTML =
+        item(hasPhotos, "Photos") +
+        item(hasModel,  "Modèle configuré") +
+        item(!!state.db,"Stockage prêt");
+    }
+
+    /* ══════════════════════════════════════════
+       POPULATE FORM FROM CASE
+    ══════════════════════════════════════════ */
+    function populateCaseForm(item) {
+      clearObjectUrls();
+      for (const id of ["personFile","productFile"]) $(id).value = "";
+      state.capturedImages.person = null;
+      state.capturedImages.product = null;
+
+      if (!item) {
+        $("garmentType").value = "T-shirt";
+        $("reference").value   = "";
+        $("color").value       = "";
+        setPreview("person",  null);
+        setPreview("product", null);
+        return;
+      }
+
+      // Garment type: match known list, or select "T-shirt" as fallback but keep old value as title
+      const knownType = GARMENT_TYPES.includes(item.garmentType) ? item.garmentType : GARMENT_TYPES[0];
+      $("garmentType").value = knownType;
+      $("reference").value   = item.reference || "";
+      $("color").value       = item.color || "";
+
+      setPreview("person",  item.personImage);
+      setPreview("product", item.productImage);
+    }
+
+    function setPreview(target, blob) {
+      const img = $(`${target}Preview`);
+      if (blob) {
+        const url = newObjectUrl(blob);
+        img.src = url;
+        img.classList.add("visible");
+      } else {
+        img.src = "";
+        img.classList.remove("visible");
+      }
+    }
+
+    /* ══════════════════════════════════════════
+       OBJECT URL POOL
+    ══════════════════════════════════════════ */
+    function newObjectUrl(blob) {
+      const url = URL.createObjectURL(blob);
+      state.previewUrls.push(url);
+      return url;
+    }
+    function clearObjectUrls() {
+      for (const url of state.previewUrls) URL.revokeObjectURL(url);
+      state.previewUrls = [];
+    }
+
+    /* ══════════════════════════════════════════
+       CURRENT CONFIG (never stored)
+    ══════════════════════════════════════════ */
+    function currentConfig() {
+      return {
+        googleToken:  $("googleToken").value.trim(),
+        googleProject:$("googleProject").value.trim(),
+        googleRegion: $("googleRegion").value.trim(),
+        googleBaseUrl:$("googleBaseUrl").value.trim(),
+        openaiKey:    $("openaiKey").value.trim(),
+        openaiModel:  $("openaiModel").value.trim(),
+        openaiBaseUrl:$("openaiBaseUrl").value.trim(),
+        openaiPrompt: $("openaiPrompt").value
+      };
+    }
+
+    /* ══════════════════════════════════════════
+       MODEL CARDS (targeted re-render on config change)
+    ══════════════════════════════════════════ */
+    let _modelRenderDebounce = null;
+    function scheduleModelRender() {
+      clearTimeout(_modelRenderDebounce);
+      _modelRenderDebounce = setTimeout(() => { renderAllModels(); updateGenerateAllBtn(); }, 220);
+    }
+
+    function renderAllModels() {
+      const cfg   = currentConfig();
+      const cards = $("modelCards");
+      cards.replaceChildren();
+
+      for (const model of models) {
+        const available = model.isAvailable(cfg);
+        const isRunning = !!state.runningControllers[model.id];
+        const card = document.createElement("article");
+        card.className = "model-card" + (isRunning ? " running" : "");
+        card.id = `mc-${model.id}`;
+        card.setAttribute("aria-label", `Carte modèle ${model.label}`);
+
+        const version = model.id === "openai-image" ? (cfg.openaiModel || model.version) : model.version;
+        const item = activeCase();
+        const latestAttempt = [...(item?.attempts || [])]
+          .filter(a => a.modelId === model.id)
+          .sort((a,b) => b.createdAt - a.createdAt)[0];
+        const failedRecent = latestAttempt && (latestAttempt.status === "failed" || latestAttempt.status === "refused")
+          ? latestAttempt : null;
+
+        card.innerHTML = `
+          <header>
+            <h3>${esc(model.label)}</h3>
+            <span class="badge version">${esc(version)}</span>
+          </header>
+          <div class="model-meta">${available
+            ? (isRunning
+              ? `<span class="spinner" aria-hidden="true"></span> En cours… <span class="timer" id="timer-${esc(model.id)}"></span>`
+              : "Prêt à générer")
+            : 'Configuration incomplète — <button type="button" class="ghost" id="cfgBtn-'+esc(model.id)+'" style="font-size:.82rem;padding:.25rem .5rem;min-height:32px;">Configurer ⚙</button>'
+          }</div>
+          ${failedRecent && !isRunning ? `<div class="model-fail-msg">
+            Dernière tentative : ${esc(failedRecent.status === "refused" ? "Refusé" : "Échec")} ·
+            <a href="#history-${esc(failedRecent.id)}">Voir l'historique</a>
+          </div>` : ""}
+          <div class="model-actions">
+            ${isRunning
+              ? `<button type="button" data-cancel="${esc(model.id)}" class="danger">⏹ Annuler</button>`
+              : `<button type="button" class="primary" data-generate="${esc(model.id)}" ${available && state.db ? "" : "disabled"}>
+                  ▶ Générer
+                </button>`
+            }
+          </div>`;
+
+        cards.append(card);
+        if (available && document.getElementById(`cfgBtn-${model.id}`)) {
+          // already rendered as ghost button — handled via delegation
+        }
+      }
+      updateGenerateAllBtn();
+    }
+
+    /* ══════════════════════════════════════════
+       RENDERS SECTION — grouped by model
+    ══════════════════════════════════════════ */
+    function renderRendersSection() {
+      const item = activeCase();
+      const groups = $("rendersGroups");
+      const empty  = $("rendersEmpty");
+      const srcRow = $("sourceThumbs");
+      groups.replaceChildren();
+
+      if (!item || !item.attempts?.length) {
+        empty.hidden  = false;
+        srcRow.hidden = true;
+        return;
+      }
+
+      // Source thumbnails
+      clearObjectUrls();
+      srcRow.hidden = false;
+      srcRow.innerHTML = "";
+      for (const [lbl, blob] of [["Personne", item.personImage],["Vêtement", item.productImage]]) {
+        if (blob) {
+          const wrap = document.createElement("div");
+          wrap.className = "source-thumb-wrap";
+          wrap.innerHTML = `<span class="source-thumb-label">${esc(lbl)}</span>`;
+          const img = document.createElement("img");
+          img.className = "source-thumb";
+          img.src = newObjectUrl(blob);
+          img.alt = esc(lbl);
+          wrap.append(img);
+          srcRow.append(wrap);
+        }
+      }
+
+      // Build per-model groups
+      const modelOrder = models.map(m => m.id);
+      state.lightboxAttemptIds = [];
+
+      let anyVisible = false;
+      for (const model of models) {
+        const modelAttempts = (item.attempts || [])
+          .filter(a => a.modelId === model.id && (a.status === "success" || a.status === "running"))
+          .sort((a,b) => b.createdAt - a.createdAt);
+
+        if (!modelAttempts.length) continue;
+        anyVisible = true;
+
+        const group = document.createElement("div");
+        group.className = "model-renders-group";
+
+        const header = document.createElement("div");
+        header.className = "model-renders-header";
+        header.innerHTML = `<strong>${esc(model.label)}</strong>
+          <span class="badge version">${esc(modelAttempts[0].modelVersion || model.version)}</span>`;
+        group.append(header);
+
+        const scroll = document.createElement("div");
+        scroll.className = "renders-scroll";
+        scroll.setAttribute("role","list");
+
+        for (const attempt of modelAttempts) {
+          if (attempt.status === "success") state.lightboxAttemptIds.push(attempt.id);
+          const card = document.createElement("div");
+          card.className = `attempt-card ${attempt.status}`;
+          card.setAttribute("role","listitem");
+
+          const imgWrap = document.createElement("div");
+          imgWrap.className = "attempt-img-wrap";
+
+          if (attempt.status === "success" && attempt.image instanceof Blob) {
+            const src = newObjectUrl(attempt.image);
+            const img = document.createElement("img");
+            img.className = "attempt-img";
+            img.src = src;
+            img.alt = `Rendu ${esc(model.label)}`;
+            img.setAttribute("data-lightbox", attempt.id);
+            img.setAttribute("tabindex","0");
+            img.setAttribute("role","button");
+            img.setAttribute("aria-label","Agrandir ce rendu");
+            imgWrap.append(img);
+          } else if (attempt.status === "running") {
+            const ph = document.createElement("div");
+            ph.className = "attempt-placeholder";
+            ph.setAttribute("role","status");
+            ph.innerHTML = `<span class="spinner" aria-hidden="true"></span>&nbsp;En cours…`;
+            imgWrap.append(ph);
+          }
+          card.append(imgWrap);
+
+          const info = document.createElement("div");
+          info.className = "attempt-info";
+          info.innerHTML = `<span>${esc(new Date(attempt.createdAt).toLocaleDateString("fr-FR"))}</span>`;
+          if (attempt.latencyMs != null)
+            info.innerHTML += ` · <span class="latency">${fmtMs(attempt.latencyMs)}</span>`;
+          card.append(info);
+
+          // Evaluation button (feature-flagged, success only)
+          if (FEATURES.evaluation && attempt.status === "success") {
+            const evalBtn = document.createElement("button");
+            evalBtn.type = "button";
+            evalBtn.className = "feat-evaluation";
+            evalBtn.setAttribute("data-evaluate", attempt.id);
+            evalBtn.textContent = attempt.evaluation ? "Modifier l'évaluation" : "Évaluer";
+            evalBtn.style.cssText = "font-size:.78rem;margin:.4rem .65rem .5rem;";
+            card.append(evalBtn);
+          }
+
+          scroll.append(card);
+        }
+        group.append(scroll);
+        groups.append(group);
+      }
+      empty.hidden = anyVisible;
+    }
+
+    /* ══════════════════════════════════════════
+       HISTORY (complete, collapsed)
+    ══════════════════════════════════════════ */
+    function renderHistory() {
+      const item = activeCase();
+      const list = $("historyList");
+      list.replaceChildren();
+
+      if (!item?.attempts?.length) {
+        list.innerHTML = '<p style="color:var(--muted);font-size:.84rem;">Aucune tentative.</p>';
+        return;
+      }
+
+      const sorted = [...item.attempts].sort((a,b) => b.createdAt - a.createdAt);
+      for (const attempt of sorted) {
+        const model  = models.find(m => m.id === attempt.modelId);
+        const result = { success:"Réussite", failed:"Échec", refused:"Refus", running:"En cours" }[attempt.status] || attempt.status;
+        const sbCls  = { success:"sb-success", failed:"sb-failed", refused:"sb-refused", running:"sb-running" }[attempt.status] || "";
+
+        const row = document.createElement("div");
+        row.className = "history-item";
+        row.id = `history-${esc(attempt.id)}`;
+        row.setAttribute("role","listitem");
+        row.innerHTML = `
+          <div class="row" style="gap:.4rem;flex-wrap:wrap;">
+            <strong style="font-size:.88rem;">${esc(attempt.modelLabel || model?.label || attempt.modelId)}</strong>
+            <span class="badge version" style="font-size:.74rem;">${esc(attempt.modelVersion || model?.version || "")}</span>
+            <span class="status-badge ${sbCls}">${esc(result)}</span>
+          </div>
+          <p style="margin:.25rem 0 0;font-size:.8rem;color:var(--muted);">
+            ${esc(fmtDate(attempt.createdAt))} · ${fmtMs(attempt.latencyMs)}
+          </p>
+          ${attempt.error ? `<p class="error-msg">${esc(attempt.error.type)} — ${esc(attempt.error.message)}</p>` : ""}
+          ${FEATURES.evaluation && attempt.evaluation ? `<p style="font-size:.8rem;">${esc(evaluationSummary(attempt.evaluation))}</p>` : ""}
+          ${FEATURES.evaluation && !attempt.evaluation && attempt.status==="success" ? `<p style="color:var(--muted);font-size:.8rem;">Évaluation manquante</p>` : ""}`;
+
+        // Re-generate button for failed/refused
+        if (attempt.status === "failed" || attempt.status === "refused") {
+          const regenBtn = document.createElement("button");
+          regenBtn.type = "button";
+          regenBtn.style.cssText = "font-size:.8rem;margin-top:.4rem;";
+          regenBtn.textContent = "↩ Relancer";
+          regenBtn.setAttribute("data-relaunch", attempt.modelId);
+          row.append(regenBtn);
+        }
+
+        list.append(row);
+      }
+    }
+
+    /* ══════════════════════════════════════════
+       IMAGE CONVERSION (WebP/HEIC → JPEG for Google)
+    ══════════════════════════════════════════ */
+    async function ensureJpeg(blob) {
+      if (blob.type === "image/jpeg" || blob.type === "image/png") return blob;
+      return new Promise((resolve, reject) => {
+        const img = new Image();
+        const url = URL.createObjectURL(blob);
+        img.onload = () => {
+          URL.revokeObjectURL(url);
+          const canvas = document.createElement("canvas");
+          canvas.width  = img.naturalWidth;
+          canvas.height = img.naturalHeight;
+          canvas.getContext("2d").drawImage(img, 0, 0);
+          canvas.toBlob(b => b ? resolve(b) : reject(new Error("Conversion JPEG échouée")), "image/jpeg", 0.92);
+        };
+        img.onerror = () => { URL.revokeObjectURL(url); reject(new Error("Chargement image échoué")); };
+        img.src = url;
+      });
+    }
+
+    /* ══════════════════════════════════════════
+       ERROR TYPES
+    ══════════════════════════════════════════ */
+    function ProviderError(type, message, status = null) {
+      this.name    = "ProviderError";
+      this.type    = type;
+      this.message = message;
+      this.status  = status;
+      if (Error.captureStackTrace) Error.captureStackTrace(this, ProviderError);
+    }
+    ProviderError.prototype = Object.create(Error.prototype);
+    ProviderError.prototype.constructor = ProviderError;
+
+    function classifyHttpError(status, body, provider) {
+      const code = body?.error?.code || body?.error?.type || body?.code || "";
+      const msg  = body?.error?.message || body?.message || `${provider} a répondu HTTP ${status}.`;
+      const text = `${code} ${msg}`.toLowerCase();
+      if (status === 401 || status === 403)   return new ProviderError("AUTH",          msg, status);
+      if (status === 429 || status === 402)   return new ProviderError("QUOTA",         msg, status);
+      if (/moderation|safety|content.?filter|policy|refus/.test(text))
+        return new ProviderError("MODERATION", msg, status);
+      if (status === 400 || status === 413 || status === 415)
+        return new ProviderError("INVALID_INPUT", msg, status);
+      return new ProviderError("UNKNOWN", msg, status);
+    }
+
+    function errorDetails(err) {
+      if (err?.name === "AbortError") return { type:"NETWORK", message:"Tentative annulée." };
+      if (err?.type)                  return { type:err.type,  message:err.message };
+      return { type:"UNKNOWN", message:err?.message || "Erreur inattendue." };
+    }
+
+    async function fetchJson(url, options, provider) {
+      let response;
+      try { response = await fetch(url, options); }
+      catch (err) {
+        const detail = err instanceof TypeError
+          ? "Échec réseau ou CORS (le navigateur ne distingue pas ces causes)."
+          : (err?.message || "Connexion impossible.");
+        throw new ProviderError("CORS", `${provider} : ${detail}`);
+      }
+      let body;
+      try { body = await response.json(); } catch { body = {}; }
+      if (!response.ok) throw classifyHttpError(response.status, body, provider);
+      return body;
+    }
+
+    /* ══════════════════════════════════════════
+       PROVIDER: Google Virtual Try-On
+    ══════════════════════════════════════════ */
+    function validateImage(blob, label, maxBytes = Infinity, accepted = ["image/"]) {
+      if (!blob) throw new ProviderError("INVALID_INPUT", `Image ${label} manquante.`);
+      if (!accepted.some(t => t.endsWith("/") ? blob.type.startsWith(t) : t === blob.type))
+        throw new ProviderError("INVALID_INPUT", `Format non pris en charge pour ${label} (${blob.type || "type inconnu"}).`);
+      if (blob.size > maxBytes)
+        throw new ProviderError("INVALID_INPUT", `L'image ${label} dépasse ${Number.isFinite(maxBytes)?`${Math.floor(maxBytes/1e6)} Mo`:"la limite"}.`);
+    }
+    function blobToBase64(blob) {
+      return new Promise((resolve, reject) => {
+        const r = new FileReader();
+        r.onload  = () => resolve(String(r.result).split(",")[1]);
+        r.onerror = () => reject(r.error || new Error("Encodage image impossible"));
+        r.readAsDataURL(blob);
+      });
+    }
+    function fileAsDataUrl(blob) {
+      return new Promise((resolve, reject) => {
+        const r = new FileReader();
+        r.onload  = () => resolve(String(r.result));
+        r.onerror = () => reject(r.error || new Error("Lecture image impossible"));
+        r.readAsDataURL(blob);
+      });
+    }
+    function dataUrlToBlob(dataUrl) {
+      const [header, encoded] = dataUrl.split(",");
+      const mime = header.match(/data:([^;]+)/)?.[1] || "image/png";
+      const bytes = Uint8Array.from(atob(encoded), c => c.charCodeAt(0));
+      return new Blob([bytes], { type: mime });
+    }
+
+    async function generateGoogle({ personImage, productImage, signal, config }) {
+      // Convert WebP/HEIC to JPEG if needed
+      const pJpeg = await ensureJpeg(personImage);
+      const gJpeg = await ensureJpeg(productImage);
+      validateImage(pJpeg, "personne",  MAX_GOOGLE_IMAGE_BYTES, ["image/jpeg","image/png"]);
+      validateImage(gJpeg, "vêtement",  MAX_GOOGLE_IMAGE_BYTES, ["image/jpeg","image/png"]);
+      const region  = encodeURIComponent(config.googleRegion.trim());
+      const project = encodeURIComponent(config.googleProject.trim());
+      const base    = (config.googleBaseUrl || `https://${config.googleRegion}-aiplatform.googleapis.com/v1`).replace(/\/+$/, "");
+      const endpoint= `${base}/projects/${project}/locations/${region}/publishers/google/models/virtual-try-on-001:predict`;
+      const [pb64, gb64] = await Promise.all([blobToBase64(pJpeg), blobToBase64(gJpeg)]);
+      const body = await fetchJson(endpoint, {
+        method:"POST", signal,
+        headers:{ "Authorization":`Bearer ${config.googleToken}`, "Content-Type":"application/json" },
+        body: JSON.stringify({
+          instances:[{ personImage:{ image:{ bytesBase64Encoded:pb64 } }, productImages:[{ image:{ bytesBase64Encoded:gb64 } }] }],
+          parameters:{ sampleCount:1 }
+        })
+      }, "Google Virtual Try-On");
+      const result = body.predictions?.[0]?.bytesBase64Encoded || body.predictions?.[0]?.bytesBase64EncodedImage;
+      if (!result) throw new ProviderError("UNKNOWN","La réponse Google ne contient pas d'image générée.");
+      return { image: dataUrlToBlob(`data:${body.predictions[0].mimeType||"image/png"};base64,${result}`), providerLatencyMs: body.metadata?.latencyMs ?? null };
+    }
+
+    /* ══════════════════════════════════════════
+       PROVIDER: OpenAI GPT-Image
+    ══════════════════════════════════════════ */
+    async function generateOpenAI({ personImage, productImage, signal, config }) {
+      const maxBytes = Math.floor((MAX_OPENAI_DATA_URL_CHARS - 128) * 3 / 4);
+      validateImage(personImage, "personne",  maxBytes, ["image/jpeg","image/png","image/webp"]);
+      validateImage(productImage,"vêtement",  maxBytes, ["image/jpeg","image/png","image/webp"]);
+      const base = (config.openaiBaseUrl || "https://api.openai.com/v1").replace(/\/+$/, "");
+      const [pUrl, gUrl] = await Promise.all([fileAsDataUrl(personImage), fileAsDataUrl(productImage)]);
+      const body = await fetchJson(`${base}/images/edits`, {
+        method:"POST", signal,
+        headers:{ "Authorization":`Bearer ${config.openaiKey}`, "Content-Type":"application/json" },
+        body: JSON.stringify({
+          model: config.openaiModel,
+          prompt: config.openaiPrompt,
+          images:[{ image_url:pUrl },{ image_url:gUrl }],
+          n: 1
+        })
+      }, "OpenAI GPT-Image");
+      const result = body.data?.[0]?.b64_json;
+      if (!result) throw new ProviderError("UNKNOWN","La réponse OpenAI ne contient pas d'image générée.");
+      return { image: dataUrlToBlob(`data:image/png;base64,${result}`), providerLatencyMs: body.usage?.total_time_ms ?? null };
+    }
+
+    /* ══════════════════════════════════════════
+       GENERATION FLOW
+    ══════════════════════════════════════════ */
+    let _preparingGeneration = false;
+
+    async function ensureCase() {
+      const current = activeCase();
+      const personSel  = state.capturedImages.person  || $("personFile").files?.[0]  || null;
+      const productSel = state.capturedImages.product || $("productFile").files?.[0] || null;
+      const person  = personSel  || current?.personImage;
+      const product = productSel || current?.productImage;
+      const type    = $("garmentType").value;
+      const ref     = $("reference").value.trim();
+      const color   = $("color").value.trim();
+
+      validateImage(person,  "personne");
+      validateImage(product, "vêtement");
+      if (!type) throw new ProviderError("INVALID_INPUT","Indiquez le type de vêtement.");
+
+      // No change?
+      if (current && !personSel && !productSel
+          && current.garmentType === type
+          && (current.reference||"") === ref
+          && (current.color||"") === color) return current;
+
+      const now = Date.now();
+      const existing = activeSession();
+      const session  = existing
+        ? { ...existing, updatedAt:now }
+        : { id:uid(), name:type, createdAt:now, updatedAt:now };
+      const prev = state.cases.filter(c => c.sessionId === session.id);
+      const version = prev.reduce((mx,c) => Math.max(mx,c.version), 0) + 1;
+      const record = {
+        id:uid(), sessionId:session.id, version, createdAt:now,
+        garmentType:type, reference:ref, color,
+        personImage:person, productImage:product, attempts:[]
+      };
+      const tx = state.db.transaction(["sessions","cases"],"readwrite");
+      tx.objectStore("sessions").put(session);
+      tx.objectStore("cases").put(record);
+      await txDone(tx);
+      state.sessionId = session.id;
+      state.caseId    = record.id;
+      await loadState();
+      setStatus($("storageStatus"),`Cas v${version} enregistré automatiquement.`);
+      return activeCase();
+    }
+
+    async function prepareGeneration() {
+      if (_preparingGeneration) return null;
+      _preparingGeneration = true;
+      try { return await ensureCase(); }
+      catch (err) {
+        if (err?.type === "INVALID_INPUT") setStatus($("generationStatus"), err.message, true);
+        else reportStorageError(err);
+        return null;
+      } finally { _preparingGeneration = false; }
+    }
+
+    function startTimer(modelId) {
+      const startTime = Date.now();
+      const el = document.getElementById(`timer-${modelId}`);
+      if (!el) return;
+      state.runningTimers[modelId] = setInterval(() => {
+        const el2 = document.getElementById(`timer-${modelId}`);
+        if (el2) el2.textContent = fmtMs(Date.now() - startTime);
+      }, 500);
+    }
+    function stopTimer(modelId) {
+      clearInterval(state.runningTimers[modelId]);
+      delete state.runningTimers[modelId];
+    }
+
+    async function runModel(modelId, item, costConfirmed = false) {
+      const model  = models.find(m => m.id === modelId);
+      const config = currentConfig();
+      if (!model || !model.isAvailable(config)) {
+        setStatus($("generationStatus"),"Configuration du modèle incomplète.",true);
+        return;
+      }
+      if (model.requiresCostConfirmation && !costConfirmed) {
+        const ok = await confirmDialog({
+          title:`Générer avec ${model.label}`,
+          message:`Une nouvelle tentative peut entraîner des frais fournisseur. Continuer ?`,
+          okLabel:"Générer"
+        });
+        if (!ok) return;
+      }
+      const controller = new AbortController();
+      state.runningControllers[modelId] = controller;
+
+      const attempt = {
+        id:uid(), caseId:item.id, modelId, modelLabel:model.label,
+        modelVersion: modelId === "openai-image" ? config.openaiModel : model.version,
+        status:"running", saved:true, createdAt:Date.now(),
+        latencyMs:null, providerLatencyMs:null, error:null, image:null, evaluation:null
+      };
+      item.attempts = item.attempts || [];
+      item.attempts.push(attempt);
+      const started = performance.now();
+
+      try {
+        await persistCaseActivity(item);
+      } catch (err) {
+        item.attempts = item.attempts.filter(a => a.id !== attempt.id);
+        delete state.runningControllers[modelId];
+        reportStorageError(err);
+        return;
+      }
+
+      setStatus($("generationStatus"),`Génération ${model.label}…`);
+      renderAllModels();
+      startTimer(modelId);
+
+      try {
+        const result = await model.generate({
+          personImage:  item.personImage,
+          productImage: item.productImage,
+          meta:{ type:item.garmentType, reference:item.reference, color:item.color },
+          signal: controller.signal,
+          config
+        });
+        attempt.status = "success";
+        attempt.image  = result.image;
+        attempt.providerLatencyMs = result.providerLatencyMs ?? null;
+      } catch (err) {
+        const d = errorDetails(err);
+        attempt.status = d.type === "MODERATION" ? "refused" : "failed";
+        attempt.error  = d;
+      }
+
+      stopTimer(modelId);
+      delete state.runningControllers[modelId];
+
+      let persisted = false;
+      try {
+        await persistCaseActivity(item);
+        persisted = true;
+      } catch (err) {
+        attempt.saved  = false;
+        attempt.status = "failed";
+        attempt.image  = null;
+        attempt.error  = { type:"UNKNOWN", message:"Rendu non conservé dans IndexedDB." };
+        reportStorageError(err);
+      }
+
+      renderAllModels();
+      renderRendersSection();
+      await new Promise(r => requestAnimationFrame(r));
+      attempt.latencyMs   = performance.now() - started;
+      attempt.displayedAt = Date.now();
+
+      try {
+        await persistCaseActivity(item);
+        attempt.saved = true;
+        const msgOk   = `${model.label} terminé en ${fmtMs(attempt.latencyMs)}.`;
+        const msgFail  = `${model.label} : ${attempt.error?.type} — ${attempt.error?.message}`;
+        setStatus($("generationStatus"), attempt.status === "success" ? msgOk : msgFail, attempt.status !== "success");
+      } catch (err) {
+        attempt.latencyMs = null;
+        reportStorageError(err);
+      }
+
+      renderAllModels();
+      renderRendersSection();
+      renderHistory();
+    }
+
+    async function launchModel(modelId) {
+      const model = models.find(m => m.id === modelId);
+      if (!model || !model.isAvailable(currentConfig())) {
+        setStatus($("generationStatus"),"Configuration du modèle incomplète.",true);
+        return;
+      }
+      const item = await prepareGeneration();
+      if (item) await runModel(modelId, item, false);
+    }
+
+    async function runAllModels() {
+      const cfg   = currentConfig();
+      const avail = models.filter(m => m.isAvailable(cfg));
+      if (!avail.length) {
+        setStatus($("generationStatus"),"Aucun modèle n'est configuré.",true);
+        return;
+      }
+      const needsCost = avail.some(m => m.requiresCostConfirmation);
+      if (needsCost) {
+        const ok = await confirmDialog({
+          title:"Générer tout",
+          message:`Lancer ${avail.length} génération${avail.length>1?"s":""} en parallèle. Chaque appel peut entraîner des frais fournisseur.`,
+          okLabel:`Générer (${avail.length})`
+        });
+        if (!ok) return;
+      }
+      const item = await prepareGeneration();
+      if (!item) return;
+      setStatus($("generationStatus"),"Générations indépendantes en cours…");
+      await Promise.allSettled(avail.map(m => runModel(m.id, item, true)));
+      setStatus($("generationStatus"),"Toutes les tentatives disponibles sont terminées.");
+    }
+
+    function cancelModel(modelId) {
+      const ctrl = state.runningControllers[modelId];
+      if (ctrl) { ctrl.abort(); }
+      stopTimer(modelId);
+    }
+
+    /* ══════════════════════════════════════════
+       SESSION MANAGEMENT
+    ══════════════════════════════════════════ */
+    async function deleteCurrentSession() {
+      const session = activeSession();
+      if (!session) return;
+      const ok = await confirmDialog({
+        title:"Supprimer cette session",
+        message:`Supprimer « ${session.name} » et tous ses cas, photos, rendus ? Cette action est irréversible.`,
+        okLabel:"Supprimer la session",
+        danger:true
+      });
+      if (!ok) return;
+      try {
+        await removeSessionRecords(session.id);
+        state.sessionId = null;
+        state.caseId    = null;
+        await loadState();
+        setStatus($("sessionStatus"),"Session supprimée.");
+      } catch (err) { reportStorageError(err); }
+    }
+
+    async function deleteEverything() {
+      const ok = await confirmDialog({
+        title:"Tout supprimer",
+        message:"Supprimer toutes les sessions, photos, tentatives et rendus de ce navigateur ? Cette action est irréversible.",
+        okLabel:"Tout supprimer définitivement",
+        danger:true
+      });
+      if (!ok) return;
+      try {
+        await clearAllRecords();
+        state.sessionId = null;
+        state.caseId    = null;
+        const els = [$("retentionDays"),$("retentionDays2")];
+        els.forEach(el => { if (el) el.value = "30"; });
+        await loadState();
+        setStatus($("sessionStatus"),"Toutes les données ont été supprimées.");
+      } catch (err) { reportStorageError(err); }
+    }
+
+    async function saveRetention(inputId, statusId) {
+      const days = Number($(inputId).value);
+      if (!Number.isInteger(days) || days < 1 || days > 3650) {
+        setStatus($(statusId),"La durée doit être entre 1 et 3650 jours.",true);
+        return;
+      }
+      try {
+        await putRecord("settings",{ id:"retention", days });
+        setStatus($(statusId),`Durée de conservation : ${days} jours.`);
+        // sync the other input
+        const other = inputId === "retentionDays" ? "retentionDays2" : "retentionDays";
+        if ($(other)) $(other).value = String(days);
+      } catch (err) { reportStorageError(err); }
+    }
+
+    /* ══════════════════════════════════════════
+       PURGE EXPIRED
+    ══════════════════════════════════════════ */
+    async function purgeExpiredCases() {
+      const settings = await readAll("settings");
+      const days = Number(settings.find(s => s.id === "retention")?.days || 30);
+      const retInput  = $("retentionDays");
+      const retInput2 = $("retentionDays2");
+      if (retInput)  retInput.value  = String(days);
+      if (retInput2) retInput2.value = String(days);
+      const cutoff = Date.now() - days * 86_400_000;
+      const expired = state.sessions.filter(s => s.updatedAt < cutoff && s.createdAt < cutoff);
+      for (const s of expired) await removeSessionRecords(s.id);
+      if (expired.length) await loadState();
+    }
+
+    /* ══════════════════════════════════════════
+       IMAGE PREVIEW (file input)
+    ══════════════════════════════════════════ */
+    async function handleImageFile(target, file) {
+      if (!file) return false;
+      try {
+        validateImage(file,"sélectionnée");
+        const url = URL.createObjectURL(file);
+        const img = $(`${target}Preview`);
+        img.src = url;
+        img.classList.add("visible");
+        state.capturedImages[target] = null; // clear camera capture if gallery selected
+        updateGenerateAllBtn();
+        return true;
+      } catch (err) {
+        setStatus($("storageStatus"), err.message, true);
+        return false;
+      }
+    }
+
+    function wireImagePreview(target) {
+      const input = $(`${target}File`);
+      const galBtn = $(`${target}GalleryBtn`);
+
+      // Clicking the styled "button" triggers the hidden input
+      galBtn.addEventListener("click", () => input.click());
+      galBtn.addEventListener("keydown", e => { if (e.key==="Enter"||e.key===" ") { e.preventDefault(); input.click(); } });
+
+      input.addEventListener("change", async () => {
+        const file = input.files?.[0];
+        if (!file) return;
+        if (!await handleImageFile(target, file)) input.value = "";
+      });
+
+      $(`${target}Clear`).addEventListener("click", () => {
+        input.value = "";
+        state.capturedImages[target] = null;
+        const img = $(`${target}Preview`);
+        img.src = "";
+        img.classList.remove("visible");
+        updateGenerateAllBtn();
+      });
+    }
+
+    /* ══════════════════════════════════════════
+       CAMERA
+    ══════════════════════════════════════════ */
+    function stopCamera() {
+      state.cameraRequest++;
+      if (state.cameraStream) {
+        state.cameraStream.getTracks().forEach(t => t.stop());
+      }
+      state.cameraStream = null;
+      state.cameraTarget = null;
+      state.cameraPreviewBlob = null;
+      $("cameraVideo").srcObject = null;
+      $("captureCameraBtn").disabled = true;
+      $("cameraPreviewWrap").classList.remove("visible");
+      $("cameraPreviewWrap").hidden = true;
+      $("cameraVideo").style.display = "block";
+      $("retakeCameraBtn").hidden = true;
+      $("confirmCameraBtn").hidden = true;
+      $("captureCameraBtn").hidden = false;
+    }
+
+    async function enumerateCameras() {
+      try {
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        const cams = devices.filter(d => d.kind === "videoinput");
+        const sel = $("cameraDeviceSelect");
+        sel.innerHTML = cams.length
+          ? cams.map((d,i) => `<option value="${esc(d.deviceId)}">${esc(d.label||`Caméra ${i+1}`)}</option>`).join("")
+          : '<option value="">Caméra par défaut</option>';
+        $("cameraSelectWrap").style.display = cams.length > 1 ? "flex" : "none";
+      } catch { $("cameraSelectWrap").style.display = "none"; }
+    }
+
+    async function openCamera(target) {
+      const dialog = $("cameraDialog");
+      const request = ++state.cameraRequest;
+      state.cameraTarget = target;
+      $("cameraTitle").textContent = target === "person" ? "Photo de la personne" : "Photo du vêtement";
+      $("captureCameraBtn").disabled = true;
+      $("cameraPreviewWrap").classList.remove("visible");
+      $("cameraPreviewWrap").hidden = true;
+      $("cameraVideo").style.display = "block";
+      $("retakeCameraBtn").hidden = true;
+      $("confirmCameraBtn").hidden = true;
+      $("captureCameraBtn").hidden = false;
+      setStatus($("cameraStatus"), "Ouverture de la caméra…");
+      dialog.showModal();
+      trapFocus(dialog);
+
+      if (!navigator.mediaDevices?.getUserMedia) {
+        setCameraStatus("Caméra indisponible : HTTPS ou localhost requis.", true);
+        return;
+      }
+      await enumerateCameras();
+      await startCameraStream(target, request);
+    }
+
+    function setCameraStatus(msg, isError = false) {
+      const el = $("cameraStatus");
+      el.textContent = msg;
+      el.className = isError ? "error" : "";
+    }
+
+    async function startCameraStream(target, request) {
+      const deviceId = $("cameraDeviceSelect").value;
+      const constraints = {
+        video: deviceId
+          ? { deviceId:{ exact:deviceId } }
+          : { facingMode: target === "person" ? "user" : "environment" },
+        audio: false
+      };
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia(constraints);
+        if (request !== state.cameraRequest || !$("cameraDialog").open) {
+          stream.getTracks().forEach(t => t.stop());
+          return;
+        }
+        state.cameraStream = stream;
+        $("cameraVideo").srcObject = stream;
+        await $("cameraVideo").play();
+        if (request !== state.cameraRequest || !$("cameraDialog").open) return;
+        $("captureCameraBtn").disabled = false;
+        setCameraStatus("Cadrez, puis prenez la photo.");
+      } catch (err) {
+        if (request !== state.cameraRequest || !$("cameraDialog").open) return;
+        if (state.cameraStream) { state.cameraStream.getTracks().forEach(t=>t.stop()); state.cameraStream=null; }
+        const msg = err?.name==="NotAllowedError"
+          ? "Accès à la caméra refusé. Autorisez-le dans les réglages du navigateur."
+          : err?.name==="NotFoundError"
+            ? "Aucune caméra disponible sur cet appareil."
+            : `Impossible d'ouvrir la caméra : ${err?.message||"erreur inconnue"}.`;
+        setCameraStatus(msg, true);
+      }
+    }
+
+    async function captureCamera() {
+      const target = state.cameraTarget;
+      const video  = $("cameraVideo");
+      if (!target || !video.videoWidth || !video.videoHeight) {
+        setCameraStatus("La caméra n'est pas encore prête.", true);
+        return;
+      }
+      $("captureCameraBtn").disabled = true;
+      const canvas = document.createElement("canvas");
+      canvas.width  = video.videoWidth;
+      canvas.height = video.videoHeight;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) { setCameraStatus("Impossible de capturer l'image.", true); $("captureCameraBtn").disabled=false; return; }
+      ctx.drawImage(video, 0, 0);
+      const blob = await new Promise(r => canvas.toBlob(r, "image/jpeg", 0.9));
+      if (!blob) { setCameraStatus("Impossible d'encoder la photo.", true); $("captureCameraBtn").disabled=false; return; }
+
+      // Show preview
+      state.cameraPreviewBlob = blob;
+      const prevEl = $("cameraPreview");
+      const prevUrl = URL.createObjectURL(blob);
+      prevEl.src = prevUrl;
+      $("cameraPreviewWrap").classList.add("visible");
+      $("cameraPreviewWrap").hidden = false;
+      $("cameraVideo").style.display = "none";
+      $("retakeCameraBtn").hidden = false;
+      $("confirmCameraBtn").hidden = false;
+      $("captureCameraBtn").hidden = true;
+      setCameraStatus("Vérifiez la photo. Reprenez ou utilisez-la.");
+      $("confirmCameraBtn").focus();
+    }
+
+    function retakeCamera() {
+      state.cameraPreviewBlob = null;
+      $("cameraPreviewWrap").classList.remove("visible");
+      $("cameraPreviewWrap").hidden = true;
+      $("cameraVideo").style.display = "block";
+      $("retakeCameraBtn").hidden = true;
+      $("confirmCameraBtn").hidden = true;
+      $("captureCameraBtn").hidden = false;
+      $("captureCameraBtn").disabled = false;
+      setCameraStatus("Cadrez à nouveau, puis prenez la photo.");
+    }
+
+    async function confirmCameraCapture() {
+      const target = state.cameraTarget;
+      const blob   = state.cameraPreviewBlob;
+      if (!target || !blob) return;
+      const file = new File([blob],`${target}-${Date.now()}.jpg`,{ type:"image/jpeg" });
+      state.capturedImages[target] = file;
+      $(`${target}File`).value = "";
+      setPreview(target, file);
+      updateGenerateAllBtn();
+      $("cameraDialog").close();
+      setStatus($("storageStatus"),"Photo capturée. Elle sera enregistrée au lancement d'une génération.");
+    }
+
+    /* ══════════════════════════════════════════
+       LIGHTBOX
+    ══════════════════════════════════════════ */
+    function openLightbox(attemptId) {
+      const item = activeCase();
+      if (!item) return;
+      const idx = state.lightboxAttemptIds.indexOf(attemptId);
+      if (idx === -1) return;
+      state.lightboxCurrentIdx = idx;
+      showLightboxAtIndex(idx, item);
+      $("lightbox").showModal();
+      trapFocus($("lightbox"));
+      $("closeLightbox").focus();
+    }
+    function showLightboxAtIndex(idx, item) {
+      item = item || activeCase();
+      if (!item) return;
+      const id = state.lightboxAttemptIds[idx];
+      const attempt = item.attempts?.find(a => a.id === id);
+      if (!attempt || !(attempt.image instanceof Blob)) return;
+      const model = models.find(m => m.id === attempt.modelId);
+      $("lightboxImage").src = URL.createObjectURL(attempt.image);
+      $("lightboxTitle").textContent = `${attempt.modelLabel || model?.label || attempt.modelId}`;
+      $("lightboxMeta").textContent  = `${fmtDate(attempt.createdAt)} · ${fmtMs(attempt.latencyMs)}`;
+      $("lightboxCounter").textContent = `${idx+1} / ${state.lightboxAttemptIds.length}`;
+      $("lightboxPrev").disabled = (idx === 0);
+      $("lightboxNext").disabled = (idx === state.lightboxAttemptIds.length - 1);
+
+      // Source images
+      const srcRow = $("lightboxSources");
+      srcRow.innerHTML = "";
+      for (const [lbl, blob] of [["Personne",item.personImage],["Vêtement",item.productImage]]) {
+        if (blob) {
+          const wrap = document.createElement("div");
+          wrap.className = "lightbox-src";
+          wrap.innerHTML = `<span class="lightbox-src-label">${esc(lbl)}</span>`;
+          const img = document.createElement("img");
+          img.src = URL.createObjectURL(blob);
+          img.alt = esc(lbl);
+          wrap.append(img);
+          srcRow.append(wrap);
+        }
+      }
+    }
+    function lightboxNav(delta) {
+      const item = activeCase();
+      if (!item) return;
+      const newIdx = state.lightboxCurrentIdx + delta;
+      if (newIdx < 0 || newIdx >= state.lightboxAttemptIds.length) return;
+      state.lightboxCurrentIdx = newIdx;
+      showLightboxAtIndex(newIdx, item);
+    }
+
+    /* ══════════════════════════════════════════
+       FOCUS TRAP
+    ══════════════════════════════════════════ */
+    function trapFocus(dialog) {
+      const focusable = 'button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])';
+      dialog.addEventListener("keydown", function handler(e) {
+        if (!dialog.open) { dialog.removeEventListener("keydown",handler); return; }
+        if (e.key !== "Tab") return;
+        const els = [...dialog.querySelectorAll(focusable)].filter(el => !el.closest("[aria-hidden='true']"));
+        if (!els.length) return;
+        const first = els[0], last = els[els.length-1];
+        if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+        else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+      });
+    }
+
+    /* ══════════════════════════════════════════
+       EVALUATION (feature-flagged)
+    ══════════════════════════════════════════ */
+    function evaluationSummary(ev) {
+      const scores = ev.productFidelity == null
+        ? "sans note"
+        : `produit ${ev.productFidelity}/5 · personne/fond ${ev.personBackground}/5`;
+      return `${ev.usability==="usable"?"Exploitable":"Non exploitable"} · ${scores}${ev.comment?` · ${ev.comment}`:""}`;
+    }
+    function ratingOptions(selected) {
+      return `<option value="">—</option>${RATING_SCALE.map(v=>`<option value="${v}" ${Number(selected)===v?"selected":""}>${v}</option>`).join("")}`;
+    }
+    function showEvaluationDialog(attemptId) {
+      if (!FEATURES.evaluation) return;
+      const item    = activeCase();
+      const attempt = item?.attempts?.find(a => a.id === attemptId);
+      if (!attempt || attempt.status !== "success") return;
+      const ev = attempt.evaluation || {};
+      const body = $("evalDialogBody");
+      $("evalDialogTitle").textContent = attempt.evaluation ? "Modifier l'évaluation" : "Évaluer cette tentative";
+
+      const form = document.createElement("form");
+      form.innerHTML = `
+        <div class="grid col2" style="gap:.7rem;margin-bottom:.7rem;">
+          <label>Fidélité du produit (1–5)<select name="productFidelity" required>${ratingOptions(ev.productFidelity)}</select></label>
+          <label>Préservation personne/fond (1–5)<select name="personBackground" required>${ratingOptions(ev.personBackground)}</select></label>
+        </div>
+        <label style="margin-bottom:.7rem;">Statut
+          <select name="usability">
+            <option value="usable" ${ev.usability==="usable"?"selected":""}>Exploitable</option>
+            <option value="unusable" ${ev.usability==="unusable"?"selected":""}>Non exploitable</option>
+          </select>
+        </label>
+        <label>Commentaire<textarea name="comment" maxlength="4000">${esc(ev.comment||"")}</textarea></label>
+        <div class="row" style="justify-content:flex-end;gap:.5rem;margin-top:.7rem;">
+          <button type="button" id="cancelEvalInForm" class="ghost">Annuler</button>
+          <button type="submit" class="primary">Enregistrer</button>
+        </div>`;
+
+      form.addEventListener("submit", async e => {
+        e.preventDefault();
+        const data = new FormData(form);
+        attempt.evaluation = {
+          productFidelity:  Number(data.get("productFidelity")),
+          personBackground: Number(data.get("personBackground")),
+          usability: data.get("usability"),
+          comment:   String(data.get("comment")||"").trim(),
+          updatedAt: Date.now()
+        };
+        try {
+          await persistCaseActivity(item);
+          $("evaluationDialog").close();
+          renderRendersSection();
+          renderHistory();
+        } catch (err) { reportStorageError(err); }
+      });
+      form.getElementById && form.querySelector("#cancelEvalInForm")?.addEventListener("click", () => $("evaluationDialog").close());
+
+      body.replaceChildren(form);
+      body.querySelector("#cancelEvalInForm").addEventListener("click", () => $("evaluationDialog").close());
+      $("evaluationDialog").showModal();
+      trapFocus($("evaluationDialog"));
+    }
+
+    /* ══════════════════════════════════════════
+       EXPORT MARKDOWN (feature-flagged)
+    ══════════════════════════════════════════ */
+    function markdownCell(v) {
+      return String(v??"—").replace(/\|/g,"\\|").replace(/\r?\n/g,"<br>").replace(/</g,"&lt;");
+    }
+    function percentile(values, p) {
+      if (!values.length) return "—";
+      const sorted = [...values].sort((a,b)=>a-b);
+      return String(Math.round(sorted[Math.ceil(p*sorted.length)-1]));
+    }
+    function median(values) {
+      if (!values.length) return "—";
+      const sorted = [...values].sort((a,b)=>a-b);
+      const mid = Math.floor(sorted.length/2);
+      return String(Math.round(sorted.length%2 ? sorted[mid] : (sorted[mid-1]+sorted[mid])/2));
+    }
+    function buildMarkdown() {
+      const allCases = state.cases;
+      const attempts = allCases.flatMap(c =>
+        (c.attempts||[]).filter(a=>a.saved!==false).map(a=>({...a,caseRecord:c})));
+      const lines = [
+        "# Résultats — sandbox virtual try-on","",
+        `Export : ${new Date().toLocaleString("fr-FR")}`, "",
+        "> Aucune photo ni image générée n'est incluse. Les commentaires peuvent contenir des données personnelles.","",
+        "## Synthèse comparative par modèle","",
+        "| Modèle / version | Réussites / tentatives | Taux | Médiane (ms) | p95 (ms) |",
+        "|---|---:|---:|---:|---:|"
+      ];
+      for (const model of models) {
+        const ma = attempts.filter(a=>a.modelId===model.id);
+        const versions = new Map();
+        for (const a of ma) {
+          const v = a.modelVersion||model.version;
+          if (!versions.has(v)) versions.set(v,[]);
+          versions.get(v).push(a);
+        }
+        for (const [v,items] of versions) {
+          const succ = items.filter(a=>a.status==="success").length;
+          const lats = items.filter(a=>a.status==="success"&&Number.isFinite(a.latencyMs)).map(a=>a.latencyMs);
+          lines.push(`| ${markdownCell(model.label)} / ${markdownCell(v)} | ${succ} / ${items.length} | ${Math.round(succ*100/items.length)}% | ${median(lats)} | ${percentile(lats,.95)} |`);
+        }
+      }
+      lines.push("","## Tentatives","");
+      const sessById = new Map(state.sessions.map(s=>[s.id,s]));
+      for (const c of allCases.sort((a,b)=>a.createdAt-b.createdAt)) {
+        const sess = sessById.get(c.sessionId);
+        lines.push(`### ${markdownCell(sess?.name||"Session supprimée")} — cas v${c.version}`,"");
+        lines.push(`- Type : ${markdownCell(c.garmentType)}`);
+        lines.push(`- Référence : ${markdownCell(c.reference)}`);
+        lines.push(`- Couleur : ${markdownCell(c.color)}`);
+        lines.push(`- Créé : ${new Date(c.createdAt).toLocaleString("fr-FR")}`,"");
+        lines.push("| Modèle / version | Résultat | Latence (ms) | Statut | Note produit | Note personne/fond | Commentaire |");
+        lines.push("|---|---|---:|---|---:|---:|---|");
+        for (const a of (c.attempts||[])) {
+          const ev = a.evaluation;
+          lines.push(`| ${markdownCell(a.modelLabel)} / ${markdownCell(a.modelVersion)} | ${markdownCell(labelsByStatus[a.status]||a.status)}${a.error?` (${markdownCell(a.error.type)})`:""} | ${a.latencyMs==null?"—":Math.round(a.latencyMs)} | ${ev?(ev.usability==="usable"?"Exploitable":"Non exploitable"):"—"} | ${ev?.productFidelity??"—"} | ${ev?.personBackground??"—"} | ${markdownCell(ev?.comment||"")} |`);
+        }
+        if (!(c.attempts||[]).length) lines.push("| — | Aucune tentative | — | — | — | — | — |");
+        lines.push("");
+      }
+      return `${lines.join("\n")}\n`;
+    }
+    function downloadMarkdown() {
+      if (!FEATURES.exportMarkdown) return;
+      try {
+        const blob = new Blob([buildMarkdown()],{type:"text/markdown;charset=utf-8"});
+        const url  = URL.createObjectURL(blob);
+        const a    = document.createElement("a");
+        a.href = url; a.download = `vto-resultats-${new Date().toISOString().slice(0,10)}.md`;
+        a.click();
+        setTimeout(()=>URL.revokeObjectURL(url),1000);
+        setGlobalStatus("Export Markdown préparé. Vérifiez le fichier avant de le partager.");
+      } catch (err) { setGlobalStatus(`Échec de l'export : ${err.message}`,true); }
+    }
+
+    /* ══════════════════════════════════════════
+       EVENTS
+    ══════════════════════════════════════════ */
+    function setupEvents() {
+      // Action bar
+      $("openSettingsBtn").addEventListener("click",()=>{ $("providerSettings").showModal(); trapFocus($("providerSettings")); $("closeSettingsBtn").focus(); });
+      $("openSessionsBtn").addEventListener("click",()=>{ $("sessionsPanel").showModal(); trapFocus($("sessionsPanel")); $("closeSessionsBtn").focus(); });
+      $("generateAllBtn").addEventListener("click", runAllModels);
+
+      // Settings dialog
+      $("closeSettingsBtn").addEventListener("click",()=>{ $("providerSettings").close(); $("openSettingsBtn").focus(); });
+      $("providerSettings").addEventListener("click", e=>{ if(e.target===$("providerSettings")) $("providerSettings").close(); });
+
+      // Sessions panel
+      $("closeSessionsBtn").addEventListener("click",()=>{ $("sessionsPanel").close(); $("openSessionsBtn").focus(); });
+      $("sessionsPanel").addEventListener("click", e=>{ if(e.target===$("sessionsPanel")) $("sessionsPanel").close(); });
+      $("newSessionBtn").addEventListener("click",()=>{
+        state.sessionId = null; state.caseId = null;
+        populateCaseForm(null); renderAllModels(); renderRendersSection(); renderHistory(); renderSelectors();
+        setStatus($("storageStatus"),"Nouvel essai : ajoutez les photos et lancez une génération.");
+        $("sessionsPanel").close();
+      });
+      $("deleteSessionBtn").addEventListener("click", deleteCurrentSession);
+      $("deleteAllBtn").addEventListener("click",    deleteEverything);
+      $("sessionSelect").addEventListener("change", async e=>{
+        state.sessionId = e.target.value || null; state.caseId = null;
+        try { await loadState(); } catch(err) { reportStorageError(err); }
+      });
+      $("caseSelect").addEventListener("change", e=>{
+        state.caseId = e.target.value || null;
+        populateCaseForm(activeCase());
+        renderAllModels(); renderRendersSection(); renderHistory(); renderSelectors();
+      });
+
+      // Confirm dialog
+      $("confirmOkBtn").addEventListener("click",()=>_confirmClose(true));
+      $("confirmCancelBtn").addEventListener("click",()=>_confirmClose(false));
+      $("confirmDialog").addEventListener("click",e=>{ if(e.target===$("confirmDialog")) _confirmClose(false); });
+      $("confirmDialog").addEventListener("keydown",e=>{ if(e.key==="Escape"){ e.preventDefault(); _confirmClose(false); } });
+
+      // Retention
+      $("saveRetentionBtn").addEventListener("click",()=>saveRetention("retentionDays","globalStatus"));
+      $("saveRetentionBtn2").addEventListener("click",()=>saveRetention("retentionDays2","globalStatus2"));
+      if (FEATURES.exportMarkdown) $("exportBtn")?.addEventListener("click", downloadMarkdown);
+
+      // Model cards delegation
+      $("modelCards").addEventListener("click", e=>{
+        const gen = e.target.closest("[data-generate]");
+        if (gen) launchModel(gen.dataset.generate);
+        const cancel = e.target.closest("[data-cancel]");
+        if (cancel) cancelModel(cancel.dataset.cancel);
+        const cfg = e.target.closest("[id^='cfgBtn-']");
+        if (cfg) { $("providerSettings").showModal(); trapFocus($("providerSettings")); $("closeSettingsBtn").focus(); }
+      });
+
+      // Renders delegation
+      $("rendersGroups").addEventListener("click", e=>{
+        const img = e.target.closest("[data-lightbox]");
+        if (img) openLightbox(img.dataset.lightbox);
+        const ev = e.target.closest("[data-evaluate]");
+        if (ev && FEATURES.evaluation) showEvaluationDialog(ev.dataset.evaluate);
+      });
+      $("rendersGroups").addEventListener("keydown", e=>{
+        const img = e.target.closest("[data-lightbox]");
+        if (img && (e.key==="Enter"||e.key===" ")) { e.preventDefault(); openLightbox(img.dataset.lightbox); }
+      });
+
+      // History delegation
+      $("historyList").addEventListener("click", e=>{
+        const relaunch = e.target.closest("[data-relaunch]");
+        if (relaunch) launchModel(relaunch.dataset.relaunch);
+      });
+
+      // Lightbox
+      $("closeLightbox").addEventListener("click",()=>$("lightbox").close());
+      $("lightbox").addEventListener("click",e=>{ if(e.target===$("lightbox")) $("lightbox").close(); });
+      $("lightboxPrev").addEventListener("click",()=>lightboxNav(-1));
+      $("lightboxNext").addEventListener("click",()=>lightboxNav(+1));
+      $("lightbox").addEventListener("keydown",e=>{
+        if (e.key==="ArrowLeft")  lightboxNav(-1);
+        if (e.key==="ArrowRight") lightboxNav(+1);
+        if (e.key==="Escape")     $("lightbox").close();
+      });
+      // Touch swipe on lightbox image
+      let _touchStartX = 0;
+      $("lightboxImage").addEventListener("touchstart",e=>{ _touchStartX = e.touches[0].clientX; },{passive:true});
+      $("lightboxImage").addEventListener("touchend",e=>{
+        const dx = e.changedTouches[0].clientX - _touchStartX;
+        if (Math.abs(dx) > 50) lightboxNav(dx < 0 ? 1 : -1);
+      },{passive:true});
+      $("lightbox").addEventListener("close",()=>{
+        // Return focus to the triggering image in the renders section
+        const imgs = [...$("rendersGroups").querySelectorAll("[data-lightbox]")];
+        const targetId = state.lightboxAttemptIds[state.lightboxCurrentIdx];
+        const el = imgs.find(i => i.dataset.lightbox === targetId);
+        if (el) el.focus();
+      });
+
+      // Camera
+      $("personCamera").addEventListener("click",()=>openCamera("person"));
+      $("productCamera").addEventListener("click",()=>openCamera("product"));
+      $("captureCameraBtn").addEventListener("click", captureCamera);
+      $("retakeCameraBtn").addEventListener("click", retakeCamera);
+      $("confirmCameraBtn").addEventListener("click", confirmCameraCapture);
+      $("closeCameraBtn").addEventListener("click",()=>$("cameraDialog").close());
+      $("cameraDialog").addEventListener("close", stopCamera);
+      $("cameraFacingBtn").addEventListener("click",()=>{
+        const sel = $("cameraDeviceSelect");
+        const opts = [...sel.options];
+        const curIdx = opts.findIndex(o=>o.value===sel.value);
+        const nextIdx = (curIdx+1) % opts.length;
+        sel.value = opts[nextIdx]?.value||"";
+        if (state.cameraTarget) startCameraStream(state.cameraTarget, state.cameraRequest);
+      });
+      $("cameraDeviceSelect").addEventListener("change",()=>{
+        if (state.cameraTarget) startCameraStream(state.cameraTarget, state.cameraRequest);
+      });
+      window.addEventListener("pagehide", stopCamera);
+
+      // Evaluation dialog
+      if (FEATURES.evaluation) {
+        $("closeEvalBtn")?.addEventListener("click",()=>$("evaluationDialog").close());
+        $("evaluationDialog")?.addEventListener("click",e=>{ if(e.target===$("evaluationDialog")) $("evaluationDialog").close(); });
+      }
+
+      // Config changes → targeted model re-render (debounced, no full page re-render)
+      for (const id of ["googleToken","googleProject","googleRegion","googleBaseUrl",
+                         "openaiKey","openaiModel","openaiBaseUrl","openaiPrompt"]) {
+        $(id).addEventListener("input",  scheduleModelRender);
+        $(id).addEventListener("change", scheduleModelRender);
+      }
+
+      // Image preview wiring
+      wireImagePreview("person");
+      wireImagePreview("product");
+
+      // Garment type / ref / color don't trigger re-render (no images to revoke)
+    }
+
+    /* ══════════════════════════════════════════
+       INIT
+    ══════════════════════════════════════════ */
+    async function init() {
+      applyFeatureFlags();
+      applyUIFlags();
+      setupEvents();
+
+      // HTTPS check
+      const isSecure = location.protocol === "https:" || location.hostname === "localhost" || location.hostname === "127.0.0.1";
+      if (!isSecure) {
+        $("httpsWarning").style.display = "block";
+      }
+
+      try {
+        state.db = await openDatabase();
+        await loadState();
+        await purgeExpiredCases();
+        renderAllModels();
+        renderRendersSection();
+        renderHistory();
+        updateGenerateAllBtn();
+      } catch (err) {
+        reportStorageError(err);
+        setGlobalStatus(`La sandbox ne peut pas démarrer sans IndexedDB : ${err.message}`, true);
+      }
+    }
+
+    init();
+  </script>
+</body>
+</html>
