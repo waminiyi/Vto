@@ -1,0 +1,1290 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>VTO Lab — sandbox de virtual try-on</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #1d2735;
+      --muted: #647184;
+      --line: #dce3ea;
+      --paper: #f5f7fa;
+      --surface: #fff;
+      --accent: #136b58;
+      --accent-dark: #0e5143;
+      --accent-soft: #e4f2ee;
+      --warn-bg: #fff5dc;
+      --warn-ink: #694c12;
+      --danger: #a42e31;
+      --radius: 16px;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-synthesis: none;
+      text-rendering: optimizeLegibility;
+    }
+
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--paper); color: var(--ink); line-height: 1.5; }
+    button, input, select, textarea { font: inherit; }
+    button, input, select { min-height: 44px; }
+    button {
+      border: 1px solid var(--line); border-radius: 10px; padding: .62rem .9rem;
+      background: var(--surface); color: var(--ink); cursor: pointer; font-weight: 650;
+    }
+    button:hover { border-color: var(--accent); }
+    button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible,
+    a:focus-visible, summary:focus-visible { outline: 3px solid #53a995; outline-offset: 2px; }
+    button.primary { color: #fff; background: var(--accent); border-color: var(--accent); }
+    button.primary:hover { background: var(--accent-dark); }
+    button.danger { color: var(--danger); }
+    button:disabled { cursor: not-allowed; opacity: .55; }
+    input, select, textarea {
+      width: 100%; padding: .62rem .72rem; color: var(--ink); background: #fff;
+      border: 1px solid #bdc9d5; border-radius: 9px;
+    }
+    textarea { min-height: 94px; resize: vertical; }
+    label { display: grid; gap: .35rem; font-weight: 650; }
+    label small, .hint { color: var(--muted); font-size: .88rem; font-weight: 400; }
+    .shell { max-width: 1180px; padding: 1.1rem; margin: auto; }
+    header { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; }
+    .brand { color: var(--accent); font-size: .77rem; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; }
+    h1 { margin: .2rem 0 .45rem; font-size: clamp(1.7rem, 5vw, 2.45rem); line-height: 1.1; }
+    h2 { margin: 0 0 .7rem; font-size: 1.16rem; }
+    h3 { margin: 0 0 .6rem; font-size: 1rem; }
+    p { margin: .35rem 0 .8rem; }
+    .badge { display: inline-flex; align-items: center; gap: .35rem; border-radius: 999px; padding: .24rem .65rem; background: var(--accent-soft); color: var(--accent-dark); font-size: .78rem; font-weight: 750; }
+    .notice { margin: .8rem 0 1rem; padding: .75rem .9rem; border-radius: 10px; background: var(--warn-bg); color: var(--warn-ink); font-weight: 750; }
+    .privacy { border: 1px solid #e6d2a4; }
+    .card { padding: 1rem; margin: .85rem 0; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: 0 3px 12px #20304008; }
+    .grid { display: grid; gap: .8rem; }
+    .grid.two, .grid.three { grid-template-columns: 1fr; }
+    .row { display: flex; align-items: center; gap: .6rem; flex-wrap: wrap; }
+    .row > .grow { flex: 1 1 200px; }
+    .form-grid { display: grid; gap: .8rem; }
+    .field-row { display: grid; gap: .75rem; }
+    .filebox { padding: .75rem; border: 1px dashed #9cadbb; border-radius: 12px; background: #fafcfd; }
+    .filebox input { margin-top: .55rem; }
+    .thumbs { display: grid; grid-template-columns: 1fr 1fr; gap: .75rem; }
+    .thumb { width: 100%; max-height: 300px; aspect-ratio: 4 / 3; object-fit: contain; background: #edf1f4; border-radius: 10px; }
+    .case-line { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: .55rem; }
+    .model-grid { display: grid; gap: .8rem; grid-template-columns: 1fr; }
+    .model-card { display: flex; flex-direction: column; gap: .6rem; padding: .9rem; border: 1px solid var(--line); border-radius: 13px; min-width: 0; }
+    .model-card header { align-items: center; }
+    .model-card h3 { margin: 0; }
+    .model-meta { color: var(--muted); font-size: .86rem; }
+    .model-actions { display: flex; gap: .45rem; flex-wrap: wrap; margin-top: auto; }
+    .attempt-grid { display: grid; gap: .8rem; grid-template-columns: 1fr; }
+    .attempt { border: 1px solid var(--line); border-radius: 12px; overflow: hidden; background: #fff; }
+    .attempt-top { padding: .7rem .75rem; }
+    .attempt-image { display: block; width: 100%; height: 270px; object-fit: contain; background: #eef1f4; cursor: zoom-in; }
+    .attempt-image.placeholder { display: grid; place-items: center; padding: 1rem; color: var(--muted); text-align: center; cursor: default; }
+    .attempt-footer { display: flex; flex-wrap: wrap; gap: .45rem; padding: .7rem .75rem; border-top: 1px solid var(--line); }
+    .status { font-size: .83rem; font-weight: 750; }
+    .status-success { color: #176749; }
+    .status-failed, .status-refused { color: var(--danger); }
+    .status-running { color: #6a4c10; }
+    .history { display: grid; gap: .55rem; }
+    .history-item { padding: .7rem; border: 1px solid var(--line); border-radius: 10px; }
+    .history-item p { margin: .2rem 0; }
+    .evaluation { padding: .8rem; border-top: 1px solid var(--line); background: #f8fafb; }
+    .rating-row { display: grid; gap: .7rem; grid-template-columns: 1fr; margin: .7rem 0; }
+    .small-field { font-size: .9rem; }
+    .small-field input { min-height: 40px; }
+    .alert { padding: .75rem; border-radius: 9px; color: #702728; background: #fff0ef; border: 1px solid #f1c5c2; }
+    .success { padding: .7rem; border-radius: 9px; color: #145540; background: #e6f4ee; }
+    .statusline { min-height: 1.5rem; color: var(--muted); }
+    .muted { color: var(--muted); }
+    .warning-copy { padding: .7rem; margin: .45rem 0; border-radius: 9px; background: #fff7e6; color: #604916; font-size: .9rem; }
+    .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
+    dialog { width: min(96vw, 1100px); max-width: none; max-height: 94vh; padding: .75rem; border: 0; border-radius: 16px; }
+    dialog::backdrop { background: #101923d9; }
+    dialog img { display: block; width: 100%; max-height: 82vh; object-fit: contain; }
+    dialog .row { justify-content: space-between; margin-bottom: .5rem; }
+    #cameraDialog { width: min(96vw, 720px); }
+    #cameraVideo { display: block; width: 100%; max-height: 65vh; background: #1d2735; border-radius: 10px; }
+    footer { padding: 1rem 0 2rem; color: var(--muted); font-size: .85rem; }
+    @media (min-width: 650px) {
+      .shell { padding: 1.5rem; }
+      .grid.two, .field-row, .rating-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .grid.three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+      .model-grid, .attempt-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+    @media (min-width: 960px) {
+      .model-grid, .attempt-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+      .form-grid { grid-template-columns: 1.1fr 1fr; align-items: start; }
+    }
+    @media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; } }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <header>
+      <div>
+        <div class="brand">VTO Lab · prototype local</div>
+        <h1>Comparer des rendus de vêtements</h1>
+        <p class="muted">Sandbox de recherche — les résultats ne prédisent ni la taille ni l’ajustement réel.</p>
+      </div>
+      <div class="row">
+        <span class="badge" aria-label="Données stockées dans ce navigateur">Stockage local</span>
+        <button id="openSettingsBtn" type="button">Paramétrage</button>
+      </div>
+    </header>
+
+    <div class="notice privacy" role="note">
+      Les clés et jetons saisis dans cette page restent exposés au navigateur et à ses extensions : privilégiez des identifiants temporaires et révocables.
+    </div>
+
+    <section class="card" aria-labelledby="session-heading">
+      <h2 id="session-heading">1. Session et cas</h2>
+      <div class="field-row">
+        <label>Session existante
+          <select id="sessionSelect" aria-label="Choisir une session"></select>
+        </label>
+        <div class="row">
+          <button id="newSessionBtn" type="button">Nouvel essai</button>
+          <button id="deleteSessionBtn" type="button" class="danger" disabled>Supprimer cette session</button>
+          <button id="deleteAllBtn" type="button" class="danger">Tout supprimer</button>
+        </div>
+      </div>
+      <div class="field-row" style="margin-top:.8rem">
+        <label>Cas enregistré
+          <select id="caseSelect" aria-label="Choisir une version de cas"></select>
+        </label>
+      </div>
+      <p class="hint">Une session est créée automatiquement à la première génération. Les modifications créent une nouvelle version sans écraser les essais précédents.</p>
+    </section>
+
+    <section class="card" aria-labelledby="case-heading">
+      <h2 id="case-heading">Préparer le vêtement et les photos</h2>
+      <div class="form-grid">
+        <div class="grid">
+          <div class="field-row">
+            <label class="filebox">Photo de la personne — galerie
+              <input id="personFile" type="file" accept="image/*">
+            </label>
+            <div class="filebox">
+              <strong>Photo de la personne — caméra</strong>
+              <div><button id="personCamera" type="button">Ouvrir la caméra</button></div>
+            </div>
+          </div>
+          <div class="field-row">
+            <label class="filebox">Photo du vêtement — galerie
+              <input id="productFile" type="file" accept="image/*">
+            </label>
+            <div class="filebox">
+              <strong>Photo du vêtement — caméra</strong>
+              <div><button id="productCamera" type="button">Ouvrir la caméra</button></div>
+            </div>
+          </div>
+          <div class="thumbs" aria-label="Aperçu des images sélectionnées">
+            <img id="personPreview" class="thumb" alt="Aperçu de la photo de la personne" hidden>
+            <img id="productPreview" class="thumb" alt="Aperçu de la photo du vêtement" hidden>
+          </div>
+        </div>
+        <div class="grid">
+          <div class="field-row">
+            <label>Type
+              <input id="garmentType" list="garmentTypes" value="T-shirt" maxlength="80" placeholder="Choisir ou saisir un type">
+              <datalist id="garmentTypes">
+                <option value="T-shirt"><option value="Polo"><option value="Chemise"><option value="Blouse">
+                <option value="Pull"><option value="Sweat"><option value="Cardigan"><option value="Veste">
+                <option value="Manteau"><option value="Robe"><option value="Jupe"><option value="Pantalon">
+                <option value="Jean"><option value="Short"><option value="Combinaison"><option value="Débardeur">
+              </datalist>
+            </label>
+            <label>Référence (facultative)
+              <input id="reference" maxlength="100" placeholder="Référence produit">
+            </label>
+          </div>
+          <label>Couleur
+            <input id="color" maxlength="80" placeholder="Ex. bleu marine">
+          </label>
+          <p class="hint">Le cas est enregistré automatiquement au lancement d’une génération.</p>
+          <div id="storageStatus" class="statusline" role="status" aria-live="polite"></div>
+        </div>
+      </div>
+    </section>
+
+    <dialog id="providerSettings" aria-labelledby="providerSettingsTitle">
+      <div class="row"><h2 id="providerSettingsTitle">Configuration des fournisseurs</h2><button id="closeSettingsBtn" type="button">Fermer</button></div>
+      <p class="hint">Les identifiants sont conservés uniquement en mémoire.</p>
+      <p class="warning-copy">Cette page envoie les images et les identifiants directement au fournisseur configuré. Un proxy peut être utilisé via l’URL de base ; la présence de CORS dépend du fournisseur ou du proxy.</p>
+      <div class="grid two">
+        <fieldset class="card" style="margin:0">
+          <legend><strong>Google Virtual Try-On 001</strong></legend>
+          <div class="grid">
+            <label>Jeton d’accès Google
+              <input id="googleToken" type="password" autocomplete="off" spellcheck="false">
+            </label>
+            <div class="field-row">
+              <label>Projet
+                <input id="googleProject" autocomplete="off">
+              </label>
+              <label>Région
+                <input id="googleRegion" value="us-central1" autocomplete="off">
+              </label>
+            </div>
+            <label>URL de base ou proxy (facultatif)
+              <input id="googleBaseUrl" placeholder="https://us-central1-aiplatform.googleapis.com/v1">
+            </label>
+          </div>
+        </fieldset>
+        <fieldset class="card" style="margin:0">
+          <legend><strong>OpenAI GPT-Image · retouche</strong></legend>
+          <div class="grid">
+            <label>Clé API
+              <input id="openaiKey" type="password" autocomplete="off" spellcheck="false">
+            </label>
+            <label>Nom exact du modèle
+              <input id="openaiModel" value="gpt-image-2.6-sunburst" autocomplete="off">
+              <small>Valeur initiale selon la documentation consultée ; modifiable selon l’accès du compte.</small>
+            </label>
+            <label>URL de base ou proxy (facultatif)
+              <input id="openaiBaseUrl" value="https://api.openai.com/v1">
+            </label>
+            <label>Prompt d’édition envoyé à OpenAI
+              <textarea id="openaiPrompt">Habille la personne de la photo avec le vêtement présenté dans la seconde image. Conserve l’identité, la pose, le visage, les proportions, le décor et l’éclairage de la personne. Reproduis fidèlement le type, la coupe et la couleur du vêtement. Ne modifie rien d’autre. Ce rendu est une visualisation, pas une recommandation de taille.</textarea>
+            </label>
+          </div>
+        </fieldset>
+      </div>
+      <fieldset class="card">
+        <legend><strong>Adaptateur factice</strong></legend>
+        <div class="field-row">
+          <label>Résultat simulé
+            <select id="mockOutcome">
+              <option value="random">Aléatoire</option>
+              <option value="success">Réussite</option>
+              <option value="failure">Échec réseau</option>
+              <option value="refusal">Refus de sécurité</option>
+            </select>
+          </label>
+          <label>URL de base/proxy (facultatif)
+            <input id="mockBaseUrl" placeholder="Non utilisé par le mode factice">
+          </label>
+        </div>
+      </fieldset>
+    </dialog>
+
+    <section class="card" aria-labelledby="generation-heading">
+      <div class="case-line">
+        <h2 id="generation-heading">2. Génération et comparaison</h2>
+        <button id="generateAllBtn" class="primary" type="button" disabled>Générer tout</button>
+      </div>
+      <p class="hint">Chaque relance est une nouvelle tentative et peut entraîner un coût fournisseur. Les erreurs d’un modèle n’arrêtent pas les autres.</p>
+      <div id="modelCards" class="model-grid" aria-live="polite"></div>
+      <p id="generationStatus" class="statusline" role="status" aria-live="polite"></p>
+      <h3>Rendus de ce cas</h3>
+      <div id="attemptCards" class="attempt-grid"></div>
+    </section>
+
+    <section class="card" aria-labelledby="history-heading">
+      <h2 id="history-heading">Historique des tentatives et évaluations</h2>
+      <div id="history" class="history"></div>
+    </section>
+
+    <section class="card" aria-labelledby="export-heading">
+      <h2 id="export-heading">3. Évaluation et export</h2>
+      <p>Les évaluations sont accessibles depuis chaque tentative. L’export Markdown contient les métadonnées et commentaires, mais aucune photo ou image générée.</p>
+      <p class="warning-copy">Les commentaires peuvent contenir des données personnelles. Le fichier exporté est sous la responsabilité de son destinataire.</p>
+      <div class="row">
+        <label class="grow">Conservation maximale (jours)
+          <input id="retentionDays" type="number" min="1" max="3650" value="30">
+        </label>
+        <button id="saveRetentionBtn" type="button">Enregistrer la durée</button>
+        <button id="exportBtn" type="button" disabled>Exporter en Markdown</button>
+      </div>
+      <p class="hint">Purge effectuée à l’ouverture de la page. Aucune suppression à heure fixe n’est garantie si le navigateur est fermé.</p>
+      <div id="globalStatus" class="statusline" role="status" aria-live="polite"></div>
+    </section>
+
+    <footer>Prototype réservé aux essais locaux. Ne saisissez pas de données sensibles ou d’identifiants durables.</footer>
+  </main>
+
+  <dialog id="lightbox" aria-label="Agrandissement du rendu">
+    <div class="row"><strong id="lightboxTitle">Rendu</strong><button id="closeLightbox" type="button">Fermer</button></div>
+    <img id="lightboxImage" alt="Rendu généré agrandi">
+  </dialog>
+
+  <dialog id="cameraDialog" aria-labelledby="cameraTitle">
+    <div class="row"><h2 id="cameraTitle">Prendre une photo</h2><button id="closeCameraBtn" type="button">Fermer</button></div>
+    <video id="cameraVideo" autoplay playsinline muted></video>
+    <p id="cameraStatus" class="statusline" role="status" aria-live="polite"></p>
+    <button id="captureCameraBtn" class="primary" type="button" disabled>Prendre la photo</button>
+  </dialog>
+
+  <script>
+    "use strict";
+    const DB_NAME = "vto-sandbox";
+    const DB_VERSION = 1;
+    const RATING_SCALE = [1, 2, 3, 4, 5];
+    const MAX_GOOGLE_IMAGE_BYTES = 7 * 1000 * 1000;
+    const MAX_OPENAI_DATA_URL_CHARS = 20 * 1024 * 1024;
+    const OPENAI_DEFAULT_MODEL = "gpt-image-2.6-sunburst";
+
+    const models = [
+      {
+        id: "mock",
+        label: "Adaptateur factice",
+        version: "simulation-1",
+        capabilities: { acceptsPrompt: false, maxImageBytes: Infinity, formats: ["image/*"] },
+        isAvailable: () => true,
+        generate: generateMock
+      },
+      {
+        id: "google-vto",
+        label: "Google Virtual Try-On",
+        version: "virtual-try-on-001",
+        requiresCostConfirmation: true,
+        capabilities: { acceptsPrompt: false, maxImageBytes: MAX_GOOGLE_IMAGE_BYTES, formats: ["image/jpeg", "image/png"] },
+        isAvailable: config => Boolean(config.googleToken && config.googleProject && config.googleRegion),
+        generate: generateGoogle
+      },
+      {
+        id: "openai-image",
+        label: "OpenAI GPT-Image",
+        version: "configurable",
+        requiresCostConfirmation: true,
+        capabilities: { acceptsPrompt: true, maxImageBytes: Infinity, formats: ["image/*"] },
+        isAvailable: config => Boolean(config.openaiKey && config.openaiModel && config.openaiPrompt.trim()),
+        generate: generateOpenAI
+      }
+    ];
+
+    const $ = id => document.getElementById(id);
+    const state = {
+      db: null, sessions: [], cases: [], sessionId: null, caseId: null, previewUrls: [],
+      capturedImages: { person: null, product: null },
+      cameraStream: null, cameraRequest: 0, cameraTarget: null
+    };
+    const labelsByStatus = {
+      running: "En cours", success: "Réussite", failed: "Échec", refused: "Refusé"
+    };
+
+    function uid() {
+      return typeof crypto.randomUUID === "function" ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+    }
+    function escapeHtml(value) {
+      return String(value ?? "").replace(/[&<>"']/g, char => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[char]));
+    }
+    function setStatus(element, message, isError = false) {
+      element.textContent = message;
+      element.className = isError ? "statusline alert" : "statusline";
+    }
+    function reportStorageError(error) {
+      const message = error?.name === "QuotaExceededError"
+        ? "Espace de stockage insuffisant. Supprimez des sessions ou libérez de l’espace."
+        : `Erreur de stockage : ${error?.message || "opération impossible"}`;
+      setStatus($("storageStatus"), message, true);
+      setStatus($("globalStatus"), message, true);
+    }
+    function openDatabase() {
+      return new Promise((resolve, reject) => {
+        let request;
+        try { request = indexedDB.open(DB_NAME, DB_VERSION); }
+        catch (error) { reject(error); return; }
+        request.onupgradeneeded = () => {
+          const db = request.result;
+          if (!db.objectStoreNames.contains("sessions")) db.createObjectStore("sessions", { keyPath: "id" });
+          if (!db.objectStoreNames.contains("cases")) {
+            const store = db.createObjectStore("cases", { keyPath: "id" });
+            store.createIndex("sessionId", "sessionId", { unique: false });
+          }
+          if (!db.objectStoreNames.contains("settings")) db.createObjectStore("settings", { keyPath: "id" });
+        };
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error || new Error("IndexedDB indisponible"));
+        request.onblocked = () => reject(new Error("Ouverture IndexedDB bloquée par un autre onglet."));
+      });
+    }
+    function requestResult(request) {
+      return new Promise((resolve, reject) => {
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error || new Error("Échec IndexedDB"));
+      });
+    }
+    function transactionDone(transaction) {
+      return new Promise((resolve, reject) => {
+        transaction.oncomplete = () => resolve();
+        transaction.onerror = () => reject(transaction.error || new Error("Échec de transaction IndexedDB"));
+        transaction.onabort = () => reject(transaction.error || new Error("Transaction IndexedDB annulée"));
+      });
+    }
+    async function readAll(storeName) {
+      const transaction = state.db.transaction(storeName, "readonly");
+      const result = await requestResult(transaction.objectStore(storeName).getAll());
+      await transactionDone(transaction);
+      return result;
+    }
+    async function putRecord(storeName, record) {
+      const transaction = state.db.transaction(storeName, "readwrite");
+      transaction.objectStore(storeName).put(record);
+      await transactionDone(transaction);
+    }
+    async function persistCaseActivity(item) {
+      const session = state.sessions.find(entry => entry.id === item.sessionId);
+      const transaction = state.db.transaction(session ? ["cases", "sessions"] : ["cases"], "readwrite");
+      transaction.objectStore("cases").put(item);
+      if (session) {
+        session.updatedAt = Date.now();
+        transaction.objectStore("sessions").put(session);
+      }
+      await transactionDone(transaction);
+    }
+    async function removeSessionRecords(sessionId) {
+      const tx = state.db.transaction(["sessions", "cases"], "readwrite");
+      tx.objectStore("sessions").delete(sessionId);
+      const index = tx.objectStore("cases").index("sessionId");
+      const cursorRequest = index.openKeyCursor(IDBKeyRange.only(sessionId));
+      cursorRequest.onsuccess = () => {
+        const cursor = cursorRequest.result;
+        if (cursor) {
+          tx.objectStore("cases").delete(cursor.primaryKey);
+          cursor.continue();
+        }
+      };
+      await transactionDone(tx);
+    }
+    async function clearAllRecords() {
+      const tx = state.db.transaction(["sessions", "cases", "settings"], "readwrite");
+      tx.objectStore("sessions").clear();
+      tx.objectStore("cases").clear();
+      tx.objectStore("settings").clear();
+      await transactionDone(tx);
+    }
+    async function loadState() {
+      state.sessions = (await readAll("sessions")).sort((a, b) => b.createdAt - a.createdAt);
+      state.cases = await readAll("cases");
+      if (!state.sessions.some(session => session.id === state.sessionId)) state.sessionId = state.sessions[0]?.id || null;
+      const sessionCases = state.cases.filter(item => item.sessionId === state.sessionId).sort((a, b) => b.version - a.version);
+      if (!sessionCases.some(item => item.id === state.caseId)) state.caseId = sessionCases[0]?.id || null;
+      renderSelectors();
+      populateCaseForm(activeCase());
+      renderCurrentCase();
+    }
+    async function purgeExpiredCases() {
+      const settings = await readAll("settings");
+      const days = Number(settings.find(item => item.id === "retention")?.days || 30);
+      $("retentionDays").value = String(days);
+      const cutoff = Date.now() - days * 86400000;
+      const expiredSessions = state.sessions.filter(session => session.updatedAt < cutoff && session.createdAt < cutoff);
+      for (const session of expiredSessions) await removeSessionRecords(session.id);
+      if (expiredSessions.length) await loadState();
+    }
+    function activeCase() { return state.cases.find(item => item.id === state.caseId) || null; }
+    function activeSession() { return state.sessions.find(item => item.id === state.sessionId) || null; }
+    function populateCaseForm(item) {
+      for (const id of ["personFile", "productFile"]) $(id).value = "";
+      state.capturedImages.person = null;
+      state.capturedImages.product = null;
+      if (!item) {
+        $("garmentType").value = "T-shirt";
+        $("reference").value = "";
+        $("color").value = "";
+        $("personPreview").hidden = true;
+        $("productPreview").hidden = true;
+        return;
+      }
+      $("garmentType").value = item.garmentType;
+      $("reference").value = item.reference || "";
+      $("color").value = item.color || "";
+      $("personPreview").src = newObjectUrl(item.personImage);
+      $("personPreview").hidden = false;
+      $("productPreview").src = newObjectUrl(item.productImage);
+      $("productPreview").hidden = false;
+    }
+    function currentConfig() {
+      return {
+        googleToken: $("googleToken").value.trim(),
+        googleProject: $("googleProject").value.trim(),
+        googleRegion: $("googleRegion").value.trim(),
+        googleBaseUrl: $("googleBaseUrl").value.trim(),
+        openaiKey: $("openaiKey").value.trim(),
+        openaiModel: $("openaiModel").value.trim(),
+        openaiBaseUrl: $("openaiBaseUrl").value.trim(),
+        openaiPrompt: $("openaiPrompt").value,
+        mockOutcome: $("mockOutcome").value,
+        mockBaseUrl: $("mockBaseUrl").value.trim()
+      };
+    }
+    function renderSelectors() {
+      $("sessionSelect").innerHTML = state.sessions.length
+        ? state.sessions.map(item => `<option value="${escapeHtml(item.id)}">${escapeHtml(item.name)} · ${new Date(item.createdAt).toLocaleDateString("fr-FR")}</option>`).join("")
+        : '<option value="">Aucune session</option>';
+      $("sessionSelect").value = state.sessionId || "";
+      const items = state.cases.filter(item => item.sessionId === state.sessionId).sort((a, b) => b.version - a.version);
+      $("caseSelect").innerHTML = items.length
+        ? items.map(item => `<option value="${escapeHtml(item.id)}">v${item.version} · ${escapeHtml(item.garmentType)} · ${escapeHtml(item.reference || "Sans référence")} · ${escapeHtml(item.color)}</option>`).join("")
+        : '<option value="">Aucun cas enregistré</option>';
+      $("caseSelect").value = state.caseId || "";
+      $("deleteSessionBtn").disabled = !state.sessionId;
+      $("generateAllBtn").disabled = !state.db;
+      $("exportBtn").disabled = state.cases.length === 0;
+    }
+    function newObjectUrl(blob) {
+      const url = URL.createObjectURL(blob);
+      state.previewUrls.push(url);
+      return url;
+    }
+    function clearObjectUrls() {
+      for (const url of state.previewUrls) URL.revokeObjectURL(url);
+      state.previewUrls = [];
+    }
+    function renderCurrentCase() {
+      clearObjectUrls();
+      const item = activeCase();
+      renderSelectors();
+      if (item) {
+        if (!$("personFile").files.length && !state.capturedImages.person) {
+          $("personPreview").src = newObjectUrl(item.personImage);
+          $("personPreview").hidden = false;
+        }
+        if (!$("productFile").files.length && !state.capturedImages.product) {
+          $("productPreview").src = newObjectUrl(item.productImage);
+          $("productPreview").hidden = false;
+        }
+      }
+      const cards = $("modelCards");
+      const attempts = $("attemptCards");
+      const history = $("history");
+      cards.replaceChildren();
+      attempts.replaceChildren();
+      history.replaceChildren();
+      const config = currentConfig();
+      for (const model of models) {
+        const available = model.isAvailable(config);
+        const card = document.createElement("article");
+        card.className = "model-card";
+        card.innerHTML = `        <header><h3>${escapeHtml(model.label)}</h3><span class="badge">${escapeHtml(model.id === "openai-image" ? config.openaiModel : model.version)}</span></header>
+          <div class="model-meta">${available ? "Prêt à générer" : "Configuration incomplète"}</div>
+          <div class="model-actions"><button type="button" class="primary" data-generate="${escapeHtml(model.id)}" ${available && state.db ? "" : "disabled"}>Générer avec ${escapeHtml(model.label)}</button></div>`;
+        cards.append(card);
+      }
+      if (!item) {
+        attempts.innerHTML = '<p class="muted">Aucun rendu à comparer.</p>';
+        history.innerHTML = '<p class="muted">Aucune tentative.</p>';
+        return;
+      }
+      for (const attempt of [...(item.attempts || [])].sort((a, b) => b.createdAt - a.createdAt)) {
+        if (attempt.status === "failed" || attempt.status === "refused") continue;
+        const model = models.find(entry => entry.id === attempt.modelId);
+        const title = `${attempt.modelLabel || model?.label || attempt.modelId} · ${attempt.modelVersion || model?.version || ""}`;
+        const status = labelsByStatus[attempt.status] || attempt.status;
+        const article = document.createElement("article");
+        article.className = "attempt";
+        let visual = '<div class="attempt-image placeholder">Aucun rendu image pour cette tentative.</div>';
+        if (attempt.status === "success" && attempt.image instanceof Blob) {
+          const src = newObjectUrl(attempt.image);
+          visual = `<img class="attempt-image" src="${src}" alt="Rendu ${escapeHtml(title)}" data-lightbox="${escapeHtml(attempt.id)}">`;
+        } else if (attempt.status === "running") {
+          visual = '<div class="attempt-image placeholder" role="status">Génération en cours…</div>';
+        }
+        article.innerHTML = `<div class="attempt-top"><strong>${escapeHtml(title)}</strong><br><span class="status status-${escapeHtml(attempt.status)}">${escapeHtml(status)}</span> · ${attempt.latencyMs == null ? "latence en cours" : `${Math.round(attempt.latencyMs)} ms`}</div>
+          ${visual}
+          <div class="attempt-footer">${attempt.status === "running" ? "" : `<button type="button" data-evaluate="${escapeHtml(attempt.id)}">${attempt.evaluation ? "Modifier l’évaluation" : "Évaluer"}</button>`}</div>
+          <div class="evaluation-slot" id="evaluation-${escapeHtml(attempt.id)}"></div>`;
+        attempts.append(article);
+        if (attempt.evaluation) {
+          const summary = document.createElement("div");
+          summary.className = "evaluation";
+          summary.textContent = evaluationSummary(attempt.evaluation);
+          article.querySelector(".evaluation-slot").append(summary);
+        }
+      }
+      if (!attempts.children.length) attempts.innerHTML = '<p class="muted">Aucun rendu à comparer. Les échecs et refus sont disponibles dans l’historique.</p>';
+      for (const attempt of [...(item.attempts || [])].sort((a, b) => b.createdAt - a.createdAt)) {
+        const row = document.createElement("div");
+        row.className = "history-item";
+        const model = models.find(entry => entry.id === attempt.modelId);
+        const result = attempt.status === "success" ? "Réussite" : attempt.status === "failed" ? "Échec" : attempt.status === "refused" ? "Refus" : "En cours";
+        row.innerHTML = `<strong>${escapeHtml(attempt.modelLabel || model?.label || attempt.modelId)}</strong> · ${escapeHtml(attempt.modelVersion || model?.version || "")}
+          <p>${escapeHtml(new Date(attempt.createdAt).toLocaleString("fr-FR"))} · ${escapeHtml(result)} · ${attempt.latencyMs == null ? "—" : `${Math.round(attempt.latencyMs)} ms`}</p>
+          ${attempt.error ? `<p class="muted">${escapeHtml(attempt.error.type)} — ${escapeHtml(attempt.error.message)}</p>` : ""}
+          ${attempt.evaluation ? `<p>${escapeHtml(evaluationSummary(attempt.evaluation))}</p>` : '<p class="muted">Évaluation manquante</p>'}
+          ${attempt.status === "failed" || attempt.status === "refused" ? `<button type="button" data-evaluate="${escapeHtml(attempt.id)}">${attempt.evaluation ? "Modifier l’évaluation" : "Évaluer"}</button><div id="evaluation-${escapeHtml(attempt.id)}"></div>` : ""}`;
+        history.append(row);
+      }
+      $("generateAllBtn").disabled = false;
+    }
+    function evaluationSummary(evaluation) {
+      const scores = evaluation.productFidelity == null ? "sans note de fidélité" : `produit ${evaluation.productFidelity}/5 · personne/fond ${evaluation.personBackground}/5`;
+      return `${evaluation.usability === "usable" ? "Exploitable" : "Non exploitable"} · ${scores}${evaluation.comment ? ` · ${evaluation.comment}` : ""}`;
+    }
+    function fileAsDataUrl(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(String(reader.result));
+        reader.onerror = () => reject(reader.error || new Error("Lecture de l’image impossible"));
+        reader.readAsDataURL(file);
+      });
+    }
+    function dataUrlToBlob(dataUrl) {
+      const [header, encoded] = dataUrl.split(",");
+      const mime = header.match(/data:([^;]+)/)?.[1] || "image/png";
+      const bytes = Uint8Array.from(atob(encoded), char => char.charCodeAt(0));
+      return new Blob([bytes], { type: mime });
+    }
+    function blobToBase64(blob) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(String(reader.result).split(",")[1]);
+        reader.onerror = () => reject(reader.error || new Error("Encodage de l’image impossible"));
+        reader.readAsDataURL(blob);
+      });
+    }
+    function validateImage(file, label, maxBytes = Infinity, accepted = ["image/"]) {
+      if (!file) throw new ProviderError("INVALID_INPUT", `Image ${label} manquante.`);
+      if (!accepted.some(type => type.endsWith("/") ? file.type.startsWith(type) : type === file.type)) {
+        throw new ProviderError("INVALID_INPUT", `Format non pris en charge pour ${label} (${file.type || "type inconnu"}).`);
+      }
+      if (file.size > maxBytes) {
+        const limit = Number.isFinite(maxBytes) ? `${Math.floor(maxBytes / 1000 / 1000)} Mo` : "la limite autorisée";
+        throw new ProviderError("INVALID_INPUT", `L’image ${label} dépasse ${limit}.`);
+      }
+    }
+    function ProviderError(type, message, status = null) {
+      this.name = "ProviderError";
+      this.type = type;
+      this.message = message;
+      this.status = status;
+      if (Error.captureStackTrace) Error.captureStackTrace(this, ProviderError);
+    }
+    ProviderError.prototype = Object.create(Error.prototype);
+    ProviderError.prototype.constructor = ProviderError;
+    function classifyHttpError(status, body, provider) {
+      const code = body?.error?.code || body?.error?.type || body?.code || "";
+      const message = body?.error?.message || body?.message || `${provider} a répondu HTTP ${status}.`;
+      const text = `${code} ${message}`.toLowerCase();
+      if (status === 401) return new ProviderError("AUTH", message, status);
+      if (status === 429 || status === 402) return new ProviderError("QUOTA", message, status);
+      if (/moderation|safety|content.?filter|policy|refus/.test(text)) return new ProviderError("MODERATION", message, status);
+      if (status === 400 || status === 413 || status === 415) return new ProviderError("INVALID_INPUT", message, status);
+      if (status === 403) return new ProviderError("AUTH", message, status);
+      return new ProviderError("UNKNOWN", message, status);
+    }
+    async function fetchJson(url, options, provider) {
+      let response;
+      try { response = await fetch(url, options); }
+      catch (error) {
+        const detail = error instanceof TypeError
+          ? "Échec réseau ou CORS ; le navigateur ne permet pas de distinguer ces causes."
+          : (error?.message || "Connexion impossible.");
+        throw new ProviderError("CORS", `${provider} : ${detail}`);
+      }
+      let body;
+      try { body = await response.json(); }
+      catch (_) { body = {}; }
+      if (!response.ok) throw classifyHttpError(response.status, body, provider);
+      return body;
+    }
+    async function generateMock({ meta, signal, config }) {
+      const delay = 450 + Math.round(Math.random() * 1050);
+      await new Promise((resolve, reject) => {
+        const timer = setTimeout(resolve, delay);
+        signal.addEventListener("abort", () => { clearTimeout(timer); reject(new DOMException("Annulé", "AbortError")); }, { once: true });
+      });
+      const chosen = config.mockOutcome === "random"
+        ? ["success", "success", "failure", "refusal"][Math.floor(Math.random() * 4)]
+        : config.mockOutcome;
+      if (chosen === "failure") throw new ProviderError("NETWORK", "Échec réseau simulé.");
+      if (chosen === "refusal") throw new ProviderError("MODERATION", "Refus de sécurité simulé par l’adaptateur factice.");
+      const hue = hashHue(meta.color);
+      const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="900" height="700" viewBox="0 0 900 700">
+        <defs><linearGradient id="bg" x2="0" y2="1"><stop stop-color="#f8fafc"/><stop offset="1" stop-color="#dce8e7"/></linearGradient></defs>
+        <rect width="900" height="700" fill="url(#bg)"/>
+        <circle cx="450" cy="170" r="72" fill="#d9b6a1"/>
+        <path d="M330 270 Q450 225 570 270 L650 540 Q450 600 250 540Z" fill="#fff" stroke="#667786" stroke-width="8"/>
+        <path d="M340 278 Q450 240 560 278 L610 505 Q450 550 290 505Z" fill="hsl(${hue} 55% 48%)" opacity=".92"/>
+        <path d="M405 270 L450 330 L495 270" fill="none" stroke="#fff" stroke-width="12"/>
+        <text x="450" y="630" text-anchor="middle" font-family="sans-serif" font-size="27" fill="#28423d">Simulation — aucun rendu fournisseur</text>
+      </svg>`;
+      return { image: new Blob([svg], { type: "image/svg+xml" }), providerLatencyMs: delay };
+    }
+    function hashHue(value) {
+      let hash = 0;
+      for (const char of String(value || "")) hash = (hash * 31 + char.charCodeAt(0)) >>> 0;
+      return hash % 360;
+    }
+    async function generateGoogle({ personImage, productImage, signal, config }) {
+      validateImage(personImage, "personne", MAX_GOOGLE_IMAGE_BYTES, ["image/jpeg", "image/png"]);
+      validateImage(productImage, "produit", MAX_GOOGLE_IMAGE_BYTES, ["image/jpeg", "image/png"]);
+      const region = encodeURIComponent(config.googleRegion.trim());
+      const project = encodeURIComponent(config.googleProject.trim());
+      const base = (config.googleBaseUrl || `https://${config.googleRegion}-aiplatform.googleapis.com/v1`).replace(/\/+$/, "");
+      const endpoint = `${base}/projects/${project}/locations/${region}/publishers/google/models/virtual-try-on-001:predict`;
+      const [personBase64, productBase64] = await Promise.all([blobToBase64(personImage), blobToBase64(productImage)]);
+      const body = await fetchJson(endpoint, {
+        method: "POST",
+        signal,
+        headers: { "Authorization": `Bearer ${config.googleToken}`, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          instances: [{
+            personImage: { image: { bytesBase64Encoded: personBase64 } },
+            productImages: [{ image: { bytesBase64Encoded: productBase64 } }]
+          }],
+          parameters: { sampleCount: 1 }
+        })
+      }, "Google Virtual Try-On");
+      const result = body.predictions?.[0]?.bytesBase64Encoded
+        || body.predictions?.[0]?.bytesBase64EncodedImage;
+      if (!result) throw new ProviderError("UNKNOWN", "La réponse Google ne contient pas d’image générée.");
+      return { image: dataUrlToBlob(`data:${body.predictions[0].mimeType || "image/png"};base64,${result}`), providerLatencyMs: body.metadata?.latencyMs ?? null };
+    }
+    async function generateOpenAI({ personImage, productImage, signal, config }) {
+      const formats = ["image/jpeg", "image/png", "image/webp"];
+      const maxBytes = Math.floor((MAX_OPENAI_DATA_URL_CHARS - 128) * 3 / 4);
+      validateImage(personImage, "personne", maxBytes, formats);
+      validateImage(productImage, "produit", maxBytes, formats);
+      const base = (config.openaiBaseUrl || "https://api.openai.com/v1").replace(/\/+$/, "");
+      const [personDataUrl, productDataUrl] = await Promise.all([fileAsDataUrl(personImage), fileAsDataUrl(productImage)]);
+      const body = await fetchJson(`${base}/images/edits`, {
+        method: "POST",
+        signal,
+        headers: { "Authorization": `Bearer ${config.openaiKey}`, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model: config.openaiModel,
+          prompt: config.openaiPrompt,
+          images: [{ image_url: personDataUrl }, { image_url: productDataUrl }],
+          n: 1
+        })
+      }, "OpenAI GPT-Image");
+      const result = body.data?.[0]?.b64_json;
+      if (!result) throw new ProviderError("UNKNOWN", "La réponse OpenAI ne contient pas d’image générée.");
+      return { image: dataUrlToBlob(`data:image/png;base64,${result}`), providerLatencyMs: body.usage?.total_time_ms ?? null };
+    }
+    function errorDetails(error) {
+      if (error?.name === "AbortError") return { type: "NETWORK", message: "Tentative annulée." };
+      if (error?.type) return { type: error.type, message: error.message };
+      return { type: "UNKNOWN", message: error?.message || "Erreur inattendue." };
+    }
+    function makeAbortController() {
+      return new AbortController();
+    }
+    async function runModel(modelId, item, costConfirmed = false) {
+      const model = models.find(entry => entry.id === modelId);
+      const config = currentConfig();
+      if (!model || !model.isAvailable(config)) {
+        setStatus($("generationStatus"), "Configuration du modèle incomplète.", true);
+        return;
+      }
+      if (modelId === "google-vto") {
+        try {
+          validateImage(item.personImage, "personne", MAX_GOOGLE_IMAGE_BYTES, ["image/jpeg", "image/png"]);
+          validateImage(item.productImage, "produit", MAX_GOOGLE_IMAGE_BYTES, ["image/jpeg", "image/png"]);
+        } catch (error) {
+          setStatus($("generationStatus"), error.message, true);
+          return;
+        }
+      }
+      if (model.requiresCostConfirmation && !costConfirmed
+          && !window.confirm(`Une nouvelle tentative ${model.label} peut entraîner des frais. Continuer ?`)) return;
+      const controller = makeAbortController();
+      const attempt = {
+        id: uid(), caseId: item.id, modelId, modelLabel: model.label, modelVersion: modelId === "openai-image" ? config.openaiModel : model.version,
+        status: "running", saved: true, createdAt: Date.now(), latencyMs: null, providerLatencyMs: null,
+        error: null, image: null, evaluation: null
+      };
+      item.attempts = item.attempts || [];
+      item.attempts.push(attempt);
+      const started = performance.now();
+      try {
+        await persistCaseActivity(item);
+        attempt.saved = true;
+        setStatus($("generationStatus"), `Génération ${model.label}…`);
+        renderCurrentCase();
+      } catch (error) {
+        item.attempts = item.attempts.filter(entry => entry.id !== attempt.id);
+        reportStorageError(error);
+        return;
+      }
+      try {
+        const result = await model.generate({
+          personImage: item.personImage,
+          productImage: item.productImage,
+          meta: { type: item.garmentType, reference: item.reference, color: item.color },
+          signal: controller.signal,
+          config
+        });
+        attempt.status = "success";
+        attempt.image = result.image;
+        attempt.providerLatencyMs = result.providerLatencyMs ?? null;
+      } catch (error) {
+        const details = errorDetails(error);
+        attempt.status = details.type === "MODERATION" ? "refused" : "failed";
+        attempt.error = details;
+      }
+      let outcomePersisted = false;
+      try {
+        await persistCaseActivity(item);
+        outcomePersisted = true;
+        attempt.saved = true;
+      } catch (error) {
+        attempt.saved = false;
+        reportStorageError(error);
+        attempt.status = "failed";
+        attempt.image = null;
+        attempt.error = {
+          type: error?.name === "QuotaExceededError" ? "QUOTA" : "UNKNOWN",
+          message: "Le fournisseur a répondu, mais le rendu n’a pas pu être conservé dans IndexedDB."
+        };
+        setStatus($("generationStatus"), "La tentative est terminée, mais son résultat n’a pas pu être enregistré.", true);
+      }
+      renderCurrentCase();
+      await new Promise(resolve => requestAnimationFrame(resolve));
+      attempt.latencyMs = performance.now() - started;
+      attempt.displayedAt = Date.now();
+      try {
+        await persistCaseActivity(item);
+        attempt.saved = true;
+        setStatus($("generationStatus"), attempt.status === "success"
+          ? `${model.label} terminé et affiché en ${Math.round(attempt.latencyMs)} ms.`
+          : `${model.label} : ${attempt.error.type} — ${attempt.error.message}`, attempt.status !== "success");
+      } catch (error) {
+        attempt.latencyMs = null;
+        attempt.saved = outcomePersisted;
+        reportStorageError(error);
+        setStatus($("generationStatus"), "La tentative ou sa latence n’a pas pu être enregistrée dans IndexedDB.", true);
+      }
+      renderCurrentCase();
+    }
+    let preparingGeneration = false;
+    async function prepareGeneration() {
+      if (preparingGeneration) return null;
+      preparingGeneration = true;
+      try {
+        return await ensureCase();
+      } catch (error) {
+        if (error?.type === "INVALID_INPUT") setStatus($("generationStatus"), error.message, true);
+        else reportStorageError(error);
+        return null;
+      } finally {
+        preparingGeneration = false;
+      }
+    }
+    async function launchModel(modelId) {
+      const model = models.find(entry => entry.id === modelId);
+      if (!model || !model.isAvailable(currentConfig())) {
+        setStatus($("generationStatus"), "Configuration du modèle incomplète.", true);
+        return;
+      }
+      if (model.requiresCostConfirmation
+          && !window.confirm(`Une nouvelle tentative ${model.label} peut entraîner des frais. Continuer ?`)) return;
+      const item = await prepareGeneration();
+      if (item) await runModel(modelId, item, true);
+    }
+    async function runAllModels() {
+      const config = currentConfig();
+      const available = models.filter(model => model.isAvailable(config));
+      if (!available.length) {
+        setStatus($("generationStatus"), "Aucun modèle n’est configuré.", true);
+        return;
+      }
+      const costs = available.some(model => model.requiresCostConfirmation);
+      if (costs && !window.confirm("Générer tout lancera une tentative par modèle configuré. Les appels réels peuvent entraîner des frais. Continuer ?")) return;
+      const item = await prepareGeneration();
+      if (!item) return;
+      setStatus($("generationStatus"), "Générations indépendantes en cours…");
+      await Promise.allSettled(available.map(model => runModel(model.id, item, true)));
+      setStatus($("generationStatus"), "Toutes les tentatives disponibles sont terminées. Consultez chaque statut.");
+    }
+    function selectedFile(target) {
+      return state.capturedImages[target] || $(`${target}File`).files?.[0] || null;
+    }
+    async function ensureCase() {
+      const current = activeCase();
+      const personSelection = selectedFile("person");
+      const productSelection = selectedFile("product");
+      const person = personSelection || current?.personImage;
+      const product = productSelection || current?.productImage;
+      const type = $("garmentType").value.trim();
+      const reference = $("reference").value.trim();
+      const color = $("color").value.trim();
+      validateImage(person, "personne");
+      validateImage(product, "vêtement");
+      if (!type) throw new ProviderError("INVALID_INPUT", "Indiquez le type de vêtement.");
+      if (current && !personSelection && !productSelection && current.garmentType === type
+          && (current.reference || "") === reference && (current.color || "") === color) return current;
+
+      const now = Date.now();
+      const existing = activeSession();
+      const session = existing ? { ...existing, updatedAt: now }
+        : { id: uid(), name: type, createdAt: now, updatedAt: now };
+      const previous = state.cases.filter(item => item.sessionId === session.id);
+      const version = previous.reduce((max, item) => Math.max(max, item.version), 0) + 1;
+      const record = {
+        id: uid(), sessionId: session.id, version, createdAt: now, garmentType: type,
+        reference, color, personImage: person, productImage: product, attempts: []
+      };
+      const transaction = state.db.transaction(["sessions", "cases"], "readwrite");
+      transaction.objectStore("sessions").put(session);
+      transaction.objectStore("cases").put(record);
+      await transactionDone(transaction);
+      state.sessionId = session.id;
+      state.caseId = record.id;
+      await loadState();
+      setStatus($("storageStatus"), `Cas v${version} enregistré automatiquement.`);
+      return activeCase();
+    }
+    async function deleteCurrentSession() {
+      const session = activeSession();
+      if (!session || !window.confirm(`Supprimer « ${session.name} » et tous ses cas, photos, rendus et évaluations ?`)) return;
+      try {
+        await removeSessionRecords(session.id);
+        state.sessionId = null;
+        state.caseId = null;
+        await loadState();
+        setStatus($("storageStatus"), "Session et données associées supprimées.");
+      } catch (error) { reportStorageError(error); }
+    }
+    async function deleteEverything() {
+      if (!window.confirm("Supprimer toutes les sessions, photos, tentatives, rendus et évaluations de ce navigateur ? Cette action est irréversible.")) return;
+      try {
+        await clearAllRecords();
+        state.sessionId = null;
+        state.caseId = null;
+        $("retentionDays").value = "30";
+        await loadState();
+        setStatus($("globalStatus"), "Toutes les données de la sandbox ont été supprimées.");
+      } catch (error) { reportStorageError(error); }
+    }
+    function ratingOptions(selected) {
+      return `<option value="">—</option>${RATING_SCALE.map(value => `<option value="${value}" ${Number(selected) === value ? "selected" : ""}>${value}</option>`).join("")}`;
+    }
+    function showEvaluation(attemptId) {
+      const item = activeCase();
+      const attempt = item?.attempts?.find(entry => entry.id === attemptId);
+      const slot = $(`evaluation-${attemptId}`);
+      if (!attempt || !slot) return;
+      if (slot.querySelector("form")) {
+        slot.querySelector("form").remove();
+        return;
+      }
+      const evaluation = attempt.evaluation || {};
+      const hasImageRatings = attempt.status === "success";
+      const session = activeSession();
+      const facts = [
+        ["Session", session?.name || ""], ["Version", `v${item.version}`],
+        ["Type", item.garmentType], ["Référence", item.reference || "—"], ["Couleur", item.color || "—"],
+        ["Modèle / version", `${attempt.modelLabel} / ${attempt.modelVersion}`],
+        ["Résultat", labelsByStatus[attempt.status] || attempt.status],
+        ["Latence", attempt.latencyMs == null ? "—" : `${Math.round(attempt.latencyMs)} ms`]
+      ];
+      const form = document.createElement("form");
+      form.className = "evaluation";
+      form.innerHTML = `<h3>${attempt.evaluation ? "Modifier l’évaluation" : "Évaluer cette tentative"}</h3>
+        <div class="grid two">${facts.map(([label, value]) => `<label class="small-field">${escapeHtml(label)}<input readonly value="${escapeHtml(value)}"></label>`).join("")}</div>
+        ${hasImageRatings ? `<div class="rating-row">
+          <label>Fidélité du produit (1–5)<select name="productFidelity" required>${ratingOptions(evaluation.productFidelity)}</select></label>
+          <label>Préservation de la personne et du fond (1–5)<select name="personBackground" required>${ratingOptions(evaluation.personBackground)}</select></label>
+        </div>` : '<p class="hint">Un échec ou un refus peut être évalué sans note de fidélité.</p>'}
+        <label>Statut
+          <select name="usability"><option value="usable" ${evaluation.usability === "usable" ? "selected" : ""}>Exploitable</option><option value="unusable" ${evaluation.usability === "unusable" ? "selected" : ""}>Non exploitable</option></select>
+        </label>
+        <label>Commentaire libre<textarea name="comment" maxlength="4000">${escapeHtml(evaluation.comment || "")}</textarea></label>
+        <div class="row"><button class="primary" type="submit">Enregistrer l’évaluation</button><button type="button" data-cancel-evaluation>Annuler</button></div>`;
+      form.addEventListener("submit", async event => {
+        event.preventDefault();
+        const data = new FormData(form);
+        const previousEvaluation = attempt.evaluation;
+        attempt.evaluation = {
+          factual: {
+            session: session?.name || "", version: item.version, type: item.garmentType,
+            reference: item.reference, color: item.color, model: attempt.modelLabel,
+            modelVersion: attempt.modelVersion, result: labelsByStatus[attempt.status] || attempt.status,
+            latencyMs: attempt.latencyMs
+          },
+          productFidelity: hasImageRatings ? Number(data.get("productFidelity")) : null,
+          personBackground: hasImageRatings ? Number(data.get("personBackground")) : null,
+          usability: data.get("usability"), comment: String(data.get("comment") || "").trim(),
+          updatedAt: Date.now()
+        };
+        try {
+          await persistCaseActivity(item);
+          renderCurrentCase();
+          setStatus($("globalStatus"), "Évaluation enregistrée.");
+        } catch (error) { reportStorageError(error); }
+      });
+      form.querySelector("[data-cancel-evaluation]").addEventListener("click", () => form.remove());
+      slot.append(form);
+    }
+    function markdownCell(value) {
+      return String(value ?? "—").replace(/\|/g, "\\|").replace(/\r?\n/g, "<br>").replace(/</g, "&lt;");
+    }
+    function percentile(values, p) {
+      if (!values.length) return "—";
+      const sorted = [...values].sort((a, b) => a - b);
+      return String(Math.round(sorted[Math.ceil(p * sorted.length) - 1]));
+    }
+    function median(values) {
+      if (!values.length) return "—";
+      const sorted = [...values].sort((a, b) => a - b);
+      const mid = Math.floor(sorted.length / 2);
+      return String(Math.round(sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2));
+    }
+    function buildMarkdown() {
+      const allCases = state.cases;
+      const attempts = allCases.flatMap(item => (item.attempts || [])
+        .filter(attempt => attempt.saved !== false)
+        .map(attempt => ({ ...attempt, caseRecord: item })));
+      const lines = [
+        "# Résultats — sandbox virtual try-on", "",
+        `Export : ${new Date().toLocaleString("fr-FR")}`, "",
+        "> Aucune photo ni image générée n’est incluse. Les commentaires peuvent contenir des données personnelles ; le fichier exporté est sous la responsabilité de son destinataire.", "",
+        "## Synthèse comparative par modèle", "",
+        "| Modèle / version | Réussites / tentatives | Taux de réussite | Médiane latence (ms) | p95 latence (ms) | Évaluations manquantes |",
+        "|---|---:|---:|---:|---:|---:|"
+      ];
+      for (const model of models) {
+        const modelAttempts = attempts.filter(entry => entry.modelId === model.id);
+        const versions = new Map();
+        for (const attempt of modelAttempts) {
+          const version = attempt.modelVersion || model.version;
+          if (!versions.has(version)) versions.set(version, []);
+          versions.get(version).push(attempt);
+        }
+        for (const [version, items] of versions) {
+          const successes = items.filter(entry => entry.status === "success").length;
+          const latencies = items.filter(entry => entry.status === "success" && Number.isFinite(entry.latencyMs)).map(entry => entry.latencyMs);
+          const missing = items.filter(entry => !entry.evaluation).length;
+          lines.push(`| ${markdownCell(model.label)} / ${markdownCell(version)} | ${successes} / ${items.length} | ${Math.round(successes * 100 / items.length)}% | ${median(latencies)} | ${percentile(latencies, .95)} | ${missing} |`);
+        }
+      }
+      lines.push("", "## Cas, tentatives et évaluations", "");
+      const sessionsById = new Map(state.sessions.map(session => [session.id, session]));
+      for (const item of allCases.sort((a, b) => a.createdAt - b.createdAt)) {
+        const session = sessionsById.get(item.sessionId);
+        lines.push(`### ${markdownCell(session?.name || "Session supprimée")} — cas v${item.version}`, "");
+        lines.push(`- Type : ${markdownCell(item.garmentType)}`);
+        lines.push(`- Référence : ${markdownCell(item.reference)}`);
+        lines.push(`- Couleur : ${markdownCell(item.color)}`);
+        lines.push(`- Créé : ${new Date(item.createdAt).toLocaleString("fr-FR")}`, "");
+        lines.push("| Modèle / version | Résultat | Latence action (ms) | Latence fournisseur (ms) | Statut | Note produit | Note personne/fond | Commentaire |");
+        lines.push("|---|---|---:|---:|---|---:|---:|---|");
+        for (const attempt of item.attempts || []) {
+          const ev = attempt.evaluation;
+          lines.push(`| ${markdownCell(attempt.modelLabel)} / ${markdownCell(attempt.modelVersion)} | ${markdownCell(labelsByStatus[attempt.status] || attempt.status)}${attempt.error ? ` (${markdownCell(attempt.error.type)})` : ""} | ${attempt.latencyMs == null ? "—" : Math.round(attempt.latencyMs)} | ${attempt.providerLatencyMs == null ? "—" : Math.round(attempt.providerLatencyMs)} | ${ev ? (ev.usability === "usable" ? "Exploitable" : "Non exploitable") : "Évaluation manquante"} | ${ev?.productFidelity ?? "—"} | ${ev?.personBackground ?? "—"} | ${markdownCell(ev?.comment || "")} |`);
+        }
+        if (!(item.attempts || []).length) lines.push("| — | Aucune tentative | — | — | — | — | — | — |");
+        lines.push("");
+      }
+      lines.push("## Modèles configurables", "", "| Modèle | Version par défaut |", "|---|---|");
+      for (const model of models) lines.push(`| ${markdownCell(model.label)} | ${markdownCell(model.version)} |`);
+      return `${lines.join("\n")}\n`;
+    }
+    function downloadMarkdown() {
+      try {
+        const blob = new Blob([buildMarkdown()], { type: "text/markdown;charset=utf-8" });
+        const url = URL.createObjectURL(blob);
+        const anchor = document.createElement("a");
+        anchor.href = url;
+        anchor.download = `vto-resultats-${new Date().toISOString().slice(0, 10)}.md`;
+        anchor.click();
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+        setStatus($("globalStatus"), "Export Markdown préparé. Vérifiez le fichier avant de le partager.");
+      } catch (error) { setStatus($("globalStatus"), `Échec de l’export : ${error.message}`, true); }
+    }
+    async function saveRetention() {
+      const days = Number($("retentionDays").value);
+      if (!Number.isInteger(days) || days < 1 || days > 3650) {
+        setStatus($("globalStatus"), "La durée doit être comprise entre 1 et 3650 jours.", true);
+        return;
+      }
+      try {
+        await putRecord("settings", { id: "retention", days });
+        setStatus($("globalStatus"), `Durée de conservation enregistrée : ${days} jours.`);
+      } catch (error) { reportStorageError(error); }
+    }
+    async function showSelectedImage(target, file) {
+      const preview = $(`${target}Preview`);
+      try {
+        validateImage(file, "sélectionnée");
+        preview.src = await fileAsDataUrl(file);
+        preview.hidden = false;
+        return true;
+      } catch (error) {
+        setStatus($("storageStatus"), error.message, true);
+        return false;
+      }
+    }
+    function wireImagePreview(target) {
+      const input = $(`${target}File`);
+      input.addEventListener("change", async () => {
+        const file = input.files?.[0];
+        if (!file) return;
+        if (await showSelectedImage(target, file)) state.capturedImages[target] = null;
+        else input.value = "";
+      });
+    }
+    function stopCamera() {
+      state.cameraRequest++;
+      if (state.cameraStream) {
+        for (const track of state.cameraStream.getTracks()) track.stop();
+      }
+      state.cameraStream = null;
+      state.cameraTarget = null;
+      $("cameraVideo").srcObject = null;
+      $("captureCameraBtn").disabled = true;
+    }
+    async function openCamera(target) {
+      const dialog = $("cameraDialog");
+      const request = ++state.cameraRequest;
+      state.cameraTarget = target;
+      $("cameraTitle").textContent = target === "person" ? "Photo de la personne" : "Photo du vêtement";
+      $("captureCameraBtn").disabled = true;
+      setStatus($("cameraStatus"), "Ouverture de la caméra…");
+      dialog.showModal();
+      if (!navigator.mediaDevices?.getUserMedia) {
+        setStatus($("cameraStatus"), "Caméra indisponible : utilisez localhost ou HTTPS et un navigateur compatible.", true);
+        return;
+      }
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: target === "person" ? "user" : "environment" }, audio: false
+        });
+        if (request !== state.cameraRequest || !dialog.open) {
+          for (const track of stream.getTracks()) track.stop();
+          return;
+        }
+        state.cameraStream = stream;
+        $("cameraVideo").srcObject = stream;
+        await $("cameraVideo").play();
+        if (request !== state.cameraRequest || !dialog.open) return;
+        $("captureCameraBtn").disabled = false;
+        setStatus($("cameraStatus"), "Cadrez la photo, puis prenez-la.");
+      } catch (error) {
+        if (request !== state.cameraRequest || !dialog.open) return;
+        if (state.cameraStream) {
+          for (const track of state.cameraStream.getTracks()) track.stop();
+          state.cameraStream = null;
+          $("cameraVideo").srcObject = null;
+        }
+        const message = error?.name === "NotAllowedError"
+          ? "Accès à la caméra refusé. Autorisez-le dans les réglages du navigateur."
+          : error?.name === "NotFoundError"
+            ? "Aucune caméra disponible sur cet appareil."
+            : `Impossible d’ouvrir la caméra : ${error?.message || "erreur inconnue"}.`;
+        setStatus($("cameraStatus"), message, true);
+      }
+    }
+    async function captureCamera() {
+      const target = state.cameraTarget;
+      const video = $("cameraVideo");
+      if (!target || !video.videoWidth || !video.videoHeight) {
+        setStatus($("cameraStatus"), "La caméra n’est pas encore prête.", true);
+        return;
+      }
+      $("captureCameraBtn").disabled = true;
+      const request = state.cameraRequest;
+      const canvas = document.createElement("canvas");
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      const context = canvas.getContext("2d");
+      if (!context) {
+        setStatus($("cameraStatus"), "Impossible de capturer l’image de la caméra.", true);
+        $("captureCameraBtn").disabled = false;
+        return;
+      }
+      context.drawImage(video, 0, 0);
+      const blob = await new Promise(resolve => canvas.toBlob(resolve, "image/jpeg", .9));
+      if (request !== state.cameraRequest || !$("cameraDialog").open) return;
+      if (!blob) {
+        setStatus($("cameraStatus"), "Impossible d’encoder la photo.", true);
+        $("captureCameraBtn").disabled = false;
+        return;
+      }
+      const file = new File([blob], `${target}-${Date.now()}.jpg`, { type: blob.type });
+      if (!await showSelectedImage(target, file)) {
+        $("captureCameraBtn").disabled = false;
+        return;
+      }
+      if (request !== state.cameraRequest || !$("cameraDialog").open) return;
+      state.capturedImages[target] = file;
+      $(`${target}File`).value = "";
+      $("cameraDialog").close();
+      setStatus($("storageStatus"), "Photo capturée. Elle sera enregistrée au lancement d’une génération.");
+    }
+    function setupEvents() {
+      $("openSettingsBtn").addEventListener("click", () => $("providerSettings").showModal());
+      $("closeSettingsBtn").addEventListener("click", () => $("providerSettings").close());
+      $("personCamera").addEventListener("click", () => openCamera("person"));
+      $("productCamera").addEventListener("click", () => openCamera("product"));
+      $("captureCameraBtn").addEventListener("click", captureCamera);
+      $("closeCameraBtn").addEventListener("click", () => $("cameraDialog").close());
+      $("cameraDialog").addEventListener("close", stopCamera);
+      window.addEventListener("pagehide", stopCamera);
+      $("newSessionBtn").addEventListener("click", () => {
+        state.sessionId = null;
+        state.caseId = null;
+        populateCaseForm(null);
+        renderCurrentCase();
+        setStatus($("storageStatus"), "Nouvel essai : ajoutez les photos puis lancez une génération.");
+      });
+      $("deleteSessionBtn").addEventListener("click", deleteCurrentSession);
+      $("deleteAllBtn").addEventListener("click", deleteEverything);
+      $("sessionSelect").addEventListener("change", async event => {
+        state.sessionId = event.target.value || null;
+        state.caseId = null;
+        try { await loadState(); } catch (error) { reportStorageError(error); }
+      });
+      $("caseSelect").addEventListener("change", event => {
+        state.caseId = event.target.value || null;
+        populateCaseForm(activeCase());
+        renderCurrentCase();
+      });
+      $("modelCards").addEventListener("click", event => {
+        const button = event.target.closest("[data-generate]");
+        if (button) launchModel(button.dataset.generate);
+      });
+      $("generateAllBtn").addEventListener("click", runAllModels);
+      $("attemptCards").addEventListener("click", event => {
+        const evaluate = event.target.closest("[data-evaluate]");
+        if (evaluate) showEvaluation(evaluate.dataset.evaluate);
+        const image = event.target.closest("[data-lightbox]");
+        if (image) {
+          $("lightboxTitle").textContent = image.alt;
+          $("lightboxImage").src = image.src;
+          $("lightbox").showModal();
+          $("closeLightbox").focus();
+        }
+      });
+      $("history").addEventListener("click", event => {
+        const evaluate = event.target.closest("[data-evaluate]");
+        if (evaluate) showEvaluation(evaluate.dataset.evaluate);
+      });
+      $("closeLightbox").addEventListener("click", () => $("lightbox").close());
+      $("lightbox").addEventListener("click", event => { if (event.target === $("lightbox")) $("lightbox").close(); });
+      $("exportBtn").addEventListener("click", downloadMarkdown);
+      $("saveRetentionBtn").addEventListener("click", saveRetention);
+      wireImagePreview("person");
+      wireImagePreview("product");
+      for (const id of ["googleToken", "googleProject", "googleRegion", "googleBaseUrl", "openaiKey", "openaiModel", "openaiBaseUrl", "openaiPrompt", "mockOutcome"]) {
+        $(id).addEventListener("input", renderCurrentCase);
+        $(id).addEventListener("change", renderCurrentCase);
+      }
+      $("lightbox").addEventListener("close", () => $("attemptCards").querySelector("[data-lightbox]")?.focus());
+    }
+    async function init() {
+      if (!$("openaiModel").value) $("openaiModel").value = OPENAI_DEFAULT_MODEL;
+      setupEvents();
+      if (location.protocol === "file:") {
+        setStatus($("globalStatus"), "Ouvrez ce fichier depuis http://localhost ; file:// n’est pas pris en charge.", true);
+      }
+      try {
+        state.db = await openDatabase();
+        await loadState();
+        await purgeExpiredCases();
+        renderCurrentCase();
+        if (location.protocol === "file:") {
+          $("globalStatus").insertAdjacentText("beforeend", " IndexedDB ou les appels réseau peuvent être bloqués en mode fichier.");
+        }
+      } catch (error) {
+        reportStorageError(error);
+        setStatus($("globalStatus"), `La sandbox ne peut pas démarrer sans IndexedDB : ${error.message}`, true);
+      }
+    }
+    init();
+  </script>
+</body>
+</html>
