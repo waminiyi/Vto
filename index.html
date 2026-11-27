@@ -631,7 +631,7 @@
         <!-- Personne -->
         <div class="upload-zone" aria-label="Photo de la personne">
           <div class="upload-label">👤 Personne</div>
-          <p class="upload-hint">JPEG / PNG · 7 Mo max (Google) · WebP converti automatiquement · OpenAI : copie PNG ou JPEG compressée et réduite si nécessaire, original conservé</p>
+          <p class="upload-hint">JPEG / PNG · 7 Mo max (Google) · WebP converti automatiquement · OpenAI : fichier conforme envoyé sans modification ; conversion ou compression uniquement si nécessaire</p>
           <div class="upload-preview-wrap" id="personPreviewWrap">
             <img class="upload-preview" id="personPreview" alt="Aperçu de la photo de la personne">
             <button class="upload-clear" id="personClear" type="button" aria-label="Supprimer la photo de la personne" title="Supprimer">✕</button>
@@ -651,7 +651,7 @@
         <!-- Vêtement -->
         <div class="upload-zone" aria-label="Photo du vêtement">
           <div class="upload-label">👕 Vêtement</div>
-          <p class="upload-hint">JPEG / PNG · 7 Mo max (Google) · WebP converti automatiquement · OpenAI : copie PNG ou JPEG compressée et réduite si nécessaire, original conservé</p>
+          <p class="upload-hint">JPEG / PNG · 7 Mo max (Google) · WebP converti automatiquement · OpenAI : fichier conforme envoyé sans modification ; conversion ou compression uniquement si nécessaire</p>
           <div class="upload-preview-wrap" id="productPreviewWrap">
             <img class="upload-preview" id="productPreview" alt="Aperçu de la photo du vêtement">
             <button class="upload-clear" id="productClear" type="button" aria-label="Supprimer la photo du vêtement" title="Supprimer">✕</button>
@@ -730,6 +730,7 @@
         <div class="renders-title">
           <h3>Rendus de ce cas</h3>
           <button id="exportComparisonBtn" type="button" disabled>Exporter la comparaison PNG</button>
+          <button id="deleteCaseBtn" type="button" class="danger" disabled>Supprimer cette ligne</button>
         </div>
         <p class="hint">Dernier rendu réussi de chaque fournisseur. L’export contient les photos : vérifiez-les avant de les transmettre.</p>
         <div id="comparisonStrip" class="comparison-strip" tabindex="0" role="region" aria-label="Comparaison : personne, vêtement, Vertex AI et OpenAI"></div>
@@ -1140,7 +1141,7 @@
         }
         const caption = document.createElement("figcaption");
         caption.innerHTML = `<strong>${esc(panel.label)}</strong>${panel.attempt
-          ? `<br>${esc(panel.attempt.modelVersion)} · ${fmtMs(panel.attempt.latencyMs)}<br>${esc(costLabel(panel.attempt))}<div class="cost-detail">${esc(costDetail(panel.attempt))}</div>` : ""}`;
+          ? `<br>${esc(panel.attempt.modelVersion)} · ${fmtMs(panel.attempt.latencyMs)}<br>${esc(costLabel(panel.attempt))}` : ""}`;
         figure.append(caption);
         strip.append(figure);
       }
@@ -1653,6 +1654,7 @@
       const item = activeCase();
       clearObjectUrls();
       renderComparison(item);
+      $("deleteCaseBtn").disabled = !item || item.attempts?.some(a => a.status === "running");
       state.lightboxAttemptIds = comparisonPanels(item).filter(p => p.attempt).map(p => p.attempt.id);
       const list = $("successfulComparisons");
       list.replaceChildren();
@@ -1670,6 +1672,13 @@
         button.disabled = !comparisonPanels(previous).every(p => p.image instanceof Blob);
         button.addEventListener("click", () => downloadComparison(previous));
         section.append(button);
+        const deleteButton = document.createElement("button");
+        deleteButton.type = "button";
+        deleteButton.className = "danger";
+        deleteButton.textContent = "Supprimer cette ligne";
+        deleteButton.disabled = previous.attempts?.some(a => a.status === "running");
+        deleteButton.addEventListener("click", () => deleteCase(previous.id));
+        section.append(deleteButton);
         const strip = document.createElement("div");
         strip.className = "comparison-strip";
         strip.tabIndex = 0;
@@ -1713,7 +1722,7 @@
           <p style="margin:.25rem 0 0;font-size:.8rem;color:var(--muted);">
             ${esc(fmtDate(attempt.createdAt))} · ${fmtMs(attempt.latencyMs)}
           </p>
-          <p class="cost-detail">${esc(costLabel(attempt))} · ${esc(costDetail(attempt))}</p>
+          <p class="cost-detail">${esc(costLabel(attempt))}</p>
           ${attempt.error ? `<p class="error-msg">${esc(attempt.error.type)} — ${esc(attempt.error.message)}</p>` : ""}
           ${FEATURES.evaluation && attempt.evaluation ? `<p style="font-size:.8rem;">${esc(evaluationSummary(attempt.evaluation))}</p>` : ""}
           ${FEATURES.evaluation && attempt.status==="success" ? `<button type="button" data-evaluate="${esc(attempt.id)}">${attempt.evaluation ? "Modifier l’évaluation" : "Évaluer"}</button>` : ""}`;
@@ -1871,6 +1880,13 @@
       catch {
         throw new ProviderError("INVALID_INPUT",`L'image ${label} est illisible. Importez un fichier JPEG, PNG ou WebP valide.`);
       }
+      const header = new Uint8Array(await blob.slice(0,12).arrayBuffer());
+      const matchesFormat =
+        (blob.type === "image/jpeg" && header[0] === 0xff && header[1] === 0xd8 && header[2] === 0xff) ||
+        (blob.type === "image/png" && [137,80,78,71,13,10,26,10].every((byte,i) => header[i] === byte)) ||
+        (blob.type === "image/webp" && [82,73,70,70].every((byte,i) => header[i] === byte) &&
+          [87,69,66,80].every((byte,i) => header[i+8] === byte));
+      if (matchesFormat && blob.size <= maxBytes) return blob;
       const canvas = document.createElement("canvas");
       canvas.width = image.naturalWidth;
       canvas.height = image.naturalHeight;
@@ -2135,6 +2151,34 @@
     /* ══════════════════════════════════════════
        SESSION MANAGEMENT
     ══════════════════════════════════════════ */
+    async function deleteCase(caseId) {
+      const item = state.cases.find(c => c.id === caseId);
+      if (!item) return;
+      const isRunning = () => item.attempts?.some(a => a.status === "running");
+      if (isRunning()) {
+        setStatus($("comparisonStatus"),"Attendez la fin des générations avant de supprimer cette ligne.",true);
+        return;
+      }
+      const ok = await confirmDialog({
+        title:"Supprimer cette ligne",
+        message:`Supprimer le cas v${item.version} (${item.garmentType}), ses photos, toutes ses tentatives et évaluations ? Les autres cas sont conservés. Cette action est irréversible.`,
+        okLabel:"Supprimer le cas",
+        danger:true
+      });
+      if (!ok) return;
+      if (isRunning()) {
+        setStatus($("comparisonStatus"),"Une génération a démarré. Attendez sa fin avant de supprimer cette ligne.",true);
+        return;
+      }
+      try {
+        const tx = state.db.transaction("cases","readwrite");
+        tx.objectStore("cases").delete(caseId);
+        await txDone(tx);
+        if (state.caseId === caseId) state.caseId = null;
+        await loadState();
+        setStatus($("comparisonStatus"),"Ligne supprimée, photos, rendus et évaluations compris.");
+      } catch (err) { reportStorageError(err); }
+    }
     async function deleteCurrentSession() {
       const session = activeSession();
       if (!session) return;
@@ -2439,7 +2483,7 @@
       const model = models.find(m => m.id === attempt.modelId);
       $("lightboxImage").src = URL.createObjectURL(attempt.image);
       $("lightboxTitle").textContent = `${attempt.modelLabel || model?.label || attempt.modelId}`;
-      $("lightboxMeta").textContent  = `${fmtDate(attempt.createdAt)} · ${fmtMs(attempt.latencyMs)} · ${costLabel(attempt)} · ${costDetail(attempt)}`;
+      $("lightboxMeta").textContent  = `${fmtDate(attempt.createdAt)} · ${fmtMs(attempt.latencyMs)} · ${costLabel(attempt)}`;
       $("lightboxCounter").textContent = `${idx+1} / ${state.lightboxAttemptIds.length}`;
       $("lightboxPrev").disabled = (idx === 0);
       $("lightboxNext").disabled = (idx === state.lightboxAttemptIds.length - 1);
@@ -2631,6 +2675,7 @@
     ══════════════════════════════════════════ */
     function setupEvents() {
       $("exportComparisonBtn").addEventListener("click",() => downloadComparison());
+      $("deleteCaseBtn").addEventListener("click",() => deleteCase(state.caseId));
       $("openaiModel").addEventListener("input",updateModelPricing);
       // Action bar
       $("openSettingsBtn").addEventListener("click",()=>{ $("providerSettings").showModal(); trapFocus($("providerSettings")); $("closeSettingsBtn").focus(); });
