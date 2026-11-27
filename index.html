@@ -266,6 +266,14 @@
       font-size: .78rem; color: var(--muted); font-style: italic;
       border: 1px solid var(--line); border-radius: 999px; padding: .15rem .6rem;
     }
+    .comparison-strip { display:grid; grid-template-columns:repeat(4,minmax(230px,1fr)); gap:.75rem; overflow-x:auto; padding:.3rem 0 .8rem; }
+    .renders-title { flex-wrap:wrap; }
+    .comparison-panel { margin:0; border:1px solid var(--line); border-radius:var(--radius-sm); overflow:hidden; }
+    .comparison-panel img { display:block; width:100%; height:310px; object-fit:contain; background:var(--paper); cursor:zoom-in; }
+    .upload-preview { cursor:zoom-in; }
+    .comparison-panel figcaption { padding:.65rem; font-size:.82rem; overflow-wrap:anywhere; }
+    .comparison-placeholder { height:310px; display:grid; place-items:center; padding:1rem; color:var(--muted); }
+    .cost-detail { font-size:.78rem; color:var(--muted); overflow-wrap:anywhere; }
     .source-thumbs {
       display: flex; gap: .5rem; margin-bottom: .75rem; flex-wrap: wrap;
     }
@@ -623,7 +631,7 @@
         <!-- Personne -->
         <div class="upload-zone" aria-label="Photo de la personne">
           <div class="upload-label">👤 Personne</div>
-          <p class="upload-hint">JPEG / PNG · 7 Mo max (Google) · WebP converti automatiquement</p>
+          <p class="upload-hint">JPEG / PNG · 7 Mo max (Google) · WebP converti automatiquement · OpenAI : copie PNG ou JPEG compressée et réduite si nécessaire, original conservé</p>
           <div class="upload-preview-wrap" id="personPreviewWrap">
             <img class="upload-preview" id="personPreview" alt="Aperçu de la photo de la personne">
             <button class="upload-clear" id="personClear" type="button" aria-label="Supprimer la photo de la personne" title="Supprimer">✕</button>
@@ -643,7 +651,7 @@
         <!-- Vêtement -->
         <div class="upload-zone" aria-label="Photo du vêtement">
           <div class="upload-label">👕 Vêtement</div>
-          <p class="upload-hint">JPEG / PNG · 7 Mo max (Google) · WebP converti automatiquement</p>
+          <p class="upload-hint">JPEG / PNG · 7 Mo max (Google) · WebP converti automatiquement · OpenAI : copie PNG ou JPEG compressée et réduite si nécessaire, original conservé</p>
           <div class="upload-preview-wrap" id="productPreviewWrap">
             <img class="upload-preview" id="productPreview" alt="Aperçu de la photo du vêtement">
             <button class="upload-clear" id="productClear" type="button" aria-label="Supprimer la photo du vêtement" title="Supprimer">✕</button>
@@ -721,12 +729,12 @@
       <div class="renders-section" id="rendersSection">
         <div class="renders-title">
           <h3>Rendus de ce cas</h3>
+          <button id="exportComparisonBtn" type="button" disabled>Exporter la comparaison PNG</button>
         </div>
-        <!-- Source thumbnails -->
-        <div class="source-thumbs" id="sourceThumbs" hidden aria-label="Sources utilisées"></div>
-        <!-- Groups per model -->
-        <div id="rendersGroups" aria-live="polite" aria-label="Rendus regroupés par modèle"></div>
-        <p id="rendersEmpty" class="muted" style="color:var(--muted);font-size:.88rem;" hidden>Aucun rendu réussi. Les échecs et refus sont dans l'historique.</p>
+        <p class="hint">Dernier rendu réussi de chaque fournisseur. L’export contient les photos : vérifiez-les avant de les transmettre.</p>
+        <div id="comparisonStrip" class="comparison-strip" tabindex="0" role="region" aria-label="Comparaison : personne, vêtement, Vertex AI et OpenAI"></div>
+        <p id="comparisonStatus" class="statusline" role="status" aria-live="polite"></p>
+        <div id="successfulComparisons"></div>
       </div>
 
       <!-- History (collapsed) -->
@@ -880,6 +888,18 @@
           <label>Prompt d'édition envoyé à OpenAI
             <textarea id="openaiPrompt">Habille la personne de la photo avec le vêtement présenté dans la seconde image. Conserve l'identité, la pose, le visage, les proportions, le décor et l'éclairage de la personne. Reproduis fidèlement le type, la coupe et la couleur du vêtement. Ne modifie rien d'autre. Ce rendu est une visualisation, pas une recommandation de taille.</textarea>
           </label>
+          <fieldset>
+            <legend>Coût estimé — USD par million de tokens</legend>
+            <p class="hint">Tarifs de <a href="https://developers.openai.com/api/docs/models/gpt-image-2.6-sunburst" target="_blank" rel="noopener noreferrer">GPT-Image-2.6 Sunburst</a>. Modifiables pour le modèle saisi ; ce calcul n’est pas une facture.</p>
+            <div class="grid col2">
+              <label>Texte entrant<input id="rateTextInput" type="number" min="0" step="any" value="5"></label>
+              <label>Texte entrant en cache<input id="rateTextCached" type="number" min="0" step="any" value="1.25"></label>
+              <label>Image entrante<input id="rateImageInput" type="number" min="0" step="any" value="8"></label>
+              <label>Image entrante en cache<input id="rateImageCached" type="number" min="0" step="any" value="2"></label>
+              <label>Image sortante<input id="rateImageOutput" type="number" min="0" step="any" value="30"></label>
+            </div>
+            <p id="pricingStatus" class="hint">Tarifs Sunburst préremplis.</p>
+          </fieldset>
         </div>
       </fieldset>
     </div>
@@ -958,6 +978,9 @@
       "Veste","Manteau","Robe","Jupe","Pantalon","Jean","Short","Combinaison","Débardeur"
     ];
     const KNOWN_MODELS = ["google-vto", "openai-image"];
+    const VERTEX_IMAGE_PRICE_USD = 0.06;
+    const SUNBURST_RATES = { textInput:5, textCached:1.25, imageInput:8, imageCached:2, imageOutput:30 };
+    const RATE_FIELDS = { textInput:"rateTextInput", textCached:"rateTextCached", imageInput:"rateImageInput", imageCached:"rateImageCached", imageOutput:"rateImageOutput" };
 
     /* ══════════════════════════════════════════
        MODEL REGISTRY
@@ -1002,6 +1025,179 @@
       if (ms < 1000) return `${Math.round(ms)} ms`;
       return `${(ms / 1000).toFixed(1)} s`;
     }
+    function configuredRates() {
+      return Object.fromEntries(Object.entries(RATE_FIELDS).map(([key,id]) => {
+        const raw = $(id).value.trim();
+        const value = Number(raw);
+        return [key, raw !== "" && Number.isFinite(value) && value >= 0 ? value : null];
+      }));
+    }
+    function updateModelPricing() {
+      const known = $("openaiModel").value.trim() === "gpt-image-2.6-sunburst";
+      for (const [key,id] of Object.entries(RATE_FIELDS)) $(id).value = known ? SUNBURST_RATES[key] : "";
+      $("pricingStatus").textContent = known
+        ? "Tarifs Sunburst préremplis."
+        : "Modèle différent : renseignez ses tarifs pour estimer le coût.";
+    }
+    function normalizedUsage(raw) {
+      if (!raw || typeof raw !== "object") return null;
+      const count = v => Number.isSafeInteger(v) && v >= 0 ? v : null;
+      const d = raw.input_tokens_details || {};
+      const cached = d.cached_tokens_details || {};
+      const out = raw.output_tokens_details;
+      return {
+        input:count(raw.input_tokens), text:count(d.text_tokens), image:count(d.image_tokens),
+        cached:count(d.cached_tokens),
+        cachedText:count(cached.text_tokens), cachedImage:count(cached.image_tokens),
+        output:count(raw.output_tokens),
+        outputImage:out ? count(out.image_tokens) : count(raw.output_tokens),
+        outputText:out ? count(out.text_tokens) : 0
+      };
+    }
+    function estimateOpenAICost(usage, rates) {
+      const unavailable = reason => ({ amountUsd:null, reason, rates, usage });
+      if (!usage || usage.text == null || usage.image == null || usage.outputImage == null)
+        return unavailable("Détail des tokens absent ou incomplet.");
+      if (usage.outputText == null || usage.outputText > 0)
+        return unavailable("Tokens de sortie texte sans tarif défini.");
+      if (usage.input != null && usage.input !== usage.text + usage.image)
+        return unavailable("Compteurs d’entrée incohérents.");
+      if (usage.output != null && usage.output !== usage.outputImage + usage.outputText)
+        return unavailable("Compteurs de sortie incohérents.");
+      if (usage.cached > 0 && (usage.cachedText == null || usage.cachedImage == null))
+        return unavailable("Répartition du cache texte/image manquante.");
+      const ct = usage.cachedText ?? 0, ci = usage.cachedImage ?? 0;
+      if (ct > usage.text || ci > usage.image || (usage.cached != null && ct + ci !== usage.cached))
+        return unavailable("Compteurs de cache incohérents.");
+      const counts = {
+        textInput:usage.text - ct, imageInput:usage.image - ci,
+        textCached:ct, imageCached:ci, imageOutput:usage.outputImage
+      };
+      let amountUsd = 0;
+      for (const [key,tokens] of Object.entries(counts)) {
+        if (tokens && (rates?.[key] == null || !Number.isFinite(rates[key]) || rates[key] < 0))
+          return unavailable("Tarifs nécessaires non renseignés.");
+        amountUsd += tokens ? tokens * rates[key] / 1_000_000 : 0;
+      }
+      return {
+        amountUsd, rates, usage,
+        reason:usage.cached == null && usage.cachedText == null && usage.cachedImage == null
+          ? "Cache non détaillé par l’API : estimation sans remise de cache." : "Cache déduit des entrées."
+      };
+    }
+    function attemptCost(attempt) {
+      if (attempt.cost) return attempt.cost;
+      if (attempt.modelId === "google-vto" && attempt.status === "success")
+        return { amountUsd:VERTEX_IMAGE_PRICE_USD, reason:"Tarif fourni : 0,06 USD/image." };
+      return { amountUsd:null, reason:"Usage ou facturation indisponible." };
+    }
+    function costLabel(attempt) {
+      const cost = attemptCost(attempt);
+      return cost.amountUsd == null ? "Coût indisponible"
+        : `${new Intl.NumberFormat("fr-FR", { minimumFractionDigits:2, maximumFractionDigits:6 }).format(cost.amountUsd)} USD estimés`;
+    }
+    function costDetail(attempt) {
+      const cost = attemptCost(attempt);
+      const u = cost.usage;
+      const rates = cost.rates;
+      return `${cost.reason || ""}${u ? ` Texte entrant : ${u.text ?? "?"} ; image entrante : ${u.image ?? "?"} ; image sortante : ${u.outputImage ?? "?"} ; cache texte/image : ${u.cachedText ?? "non détaillé"}/${u.cachedImage ?? "non détaillé"}.` : ""}${rates ? ` Tarifs USD/M tokens : texte ${rates.textInput ?? "?"}, cache texte ${rates.textCached ?? "?"}, image ${rates.imageInput ?? "?"}, cache image ${rates.imageCached ?? "?"}, sortie ${rates.imageOutput ?? "?"}.` : ""}`;
+    }
+    function comparisonPanels(item) {
+      const latest = id => [...(item?.attempts || [])]
+        .filter(a => a.modelId === id && a.status === "success" && a.image instanceof Blob)
+        .sort((a,b) => b.createdAt - a.createdAt)[0];
+      return [
+        { label:"Personne", image:item?.personImage },
+        { label:"Vêtement", image:item?.productImage },
+        ...[["Vertex AI","google-vto"],["OpenAI","openai-image"]].map(([label,id]) => {
+          const attempt = latest(id);
+          return { label, image:attempt?.image, attempt };
+        })
+      ];
+    }
+    function renderComparison(item, strip = $("comparisonStrip")) {
+      strip.replaceChildren();
+      const panels = comparisonPanels(item);
+      for (const panel of panels) {
+        const figure = document.createElement("figure");
+        figure.className = "comparison-panel";
+        if (panel.image instanceof Blob) {
+          const img = document.createElement("img");
+          img.src = newObjectUrl(panel.image);
+          img.alt = panel.label;
+          img.tabIndex = 0;
+          img.setAttribute("role","button");
+          img.setAttribute("aria-label",`Agrandir : ${panel.label}`);
+          if (item) img.dataset.caseId = item.id;
+          if (panel.attempt) img.dataset.lightbox = panel.attempt.id;
+          else img.dataset.source = panel.label === "Personne" ? "person" : "product";
+          figure.append(img);
+        } else {
+          const placeholder = document.createElement("div");
+          placeholder.className = "comparison-placeholder";
+          placeholder.textContent = "Image non disponible";
+          figure.append(placeholder);
+        }
+        const caption = document.createElement("figcaption");
+        caption.innerHTML = `<strong>${esc(panel.label)}</strong>${panel.attempt
+          ? `<br>${esc(panel.attempt.modelVersion)} · ${fmtMs(panel.attempt.latencyMs)}<br>${esc(costLabel(panel.attempt))}<div class="cost-detail">${esc(costDetail(panel.attempt))}</div>` : ""}`;
+        figure.append(caption);
+        strip.append(figure);
+      }
+      if (strip === $("comparisonStrip"))
+        $("exportComparisonBtn").disabled = !panels.every(p => p.image instanceof Blob);
+    }
+    async function decodeComparisonImage(blob) {
+      const url = URL.createObjectURL(blob);
+      try {
+        const img = new Image();
+        img.src = url;
+        await img.decode();
+        return img;
+      } finally { URL.revokeObjectURL(url); }
+    }
+    async function createComparisonPng(item) {
+      const panels = comparisonPanels(item);
+      if (!panels.every(p => p.image instanceof Blob)) throw new Error("Les quatre images sont nécessaires.");
+      const images = await Promise.all(panels.map(p => decodeComparisonImage(p.image)));
+      const canvas = document.createElement("canvas");
+      canvas.width = 2400; canvas.height = 1000;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) throw new Error("Canvas indisponible.");
+      ctx.fillStyle = "#ffffff"; ctx.fillRect(0,0,canvas.width,canvas.height);
+      panels.forEach((panel,i) => {
+        const x = i * 600, img = images[i];
+        const scale = Math.min(568 / img.naturalWidth, 800 / img.naturalHeight);
+        const w = img.naturalWidth * scale, h = img.naturalHeight * scale;
+        ctx.drawImage(img,x + (600-w)/2,32 + (800-h)/2,w,h);
+        ctx.fillStyle = "#1d2735"; ctx.font = "bold 24px sans-serif";
+        ctx.fillText(panel.label,x+16,872,568);
+        ctx.font = "18px sans-serif";
+        if (panel.attempt) {
+          ctx.fillText(panel.attempt.modelVersion || "",x+16,905,568);
+          ctx.fillText(`${fmtMs(panel.attempt.latencyMs)} · ${costLabel(panel.attempt)}`,x+16,936,568);
+        }
+      });
+      ctx.font = "16px sans-serif"; ctx.fillText(`Cas v${item.version} · ${item.garmentType} · Coûts estimés, pas une facture`,16,981,2368);
+      return new Promise((resolve,reject) => canvas.toBlob(
+        blob => blob ? resolve(blob) : reject(new Error("Encodage PNG impossible.")), "image/png"));
+    }
+    async function downloadComparison(item = activeCase()) {
+      $("exportComparisonBtn").disabled = true;
+      try {
+        const blob = await createComparisonPng(item);
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url; a.download = `vto-comparaison-${item.id}-v${item.version}.png`;
+        a.click();
+        setTimeout(() => URL.revokeObjectURL(url),1000);
+        setStatus($("comparisonStatus"),"Comparaison PNG exportée. Elle contient les photos.");
+      } catch (err) {
+        setStatus($("comparisonStatus"),`Export impossible : ${err.message}`,true);
+      } finally {
+        $("exportComparisonBtn").disabled = !comparisonPanels(activeCase()).every(p => p.image instanceof Blob);
+      }
+    }
 
     /* ══════════════════════════════════════════
        STATE
@@ -1011,6 +1207,7 @@
       sessions: [], cases: [],
       sessionId: null, caseId: null,
       previewUrls: [],
+      sourcePreviewUrls: { person:null, product:null },
       capturedImages: { person: null, product: null },
       cameraStream: null, cameraRequest: 0, cameraTarget: null,
       cameraPreviewBlob: null,
@@ -1343,8 +1540,11 @@
 
     function setPreview(target, blob) {
       const img = $(`${target}Preview`);
+      if (state.sourcePreviewUrls[target]) URL.revokeObjectURL(state.sourcePreviewUrls[target]);
+      state.sourcePreviewUrls[target] = null;
       if (blob) {
-        const url = newObjectUrl(blob);
+        const url = URL.createObjectURL(blob);
+        state.sourcePreviewUrls[target] = url;
         img.src = url;
         img.classList.add("visible");
       } else {
@@ -1378,7 +1578,8 @@
         openaiKey:    $("openaiKey").value.trim(),
         openaiModel:  $("openaiModel").value.trim(),
         openaiBaseUrl:$("openaiBaseUrl").value.trim(),
-        openaiPrompt: $("openaiPrompt").value
+        openaiPrompt: $("openaiPrompt").value,
+        openaiRates: configuredRates()
       };
     }
 
@@ -1427,6 +1628,7 @@
             Dernière tentative : ${esc(failedRecent.status === "refused" ? "Refusé" : "Échec")} ·
             <a href="#history-${esc(failedRecent.id)}">Voir l'historique</a>
           </div>` : ""}
+          <p class="cost-detail">${model.id === "google-vto" ? "0,06 USD par image générée" : "Tarification par tokens"}${latestAttempt ? `<br>Dernière tentative : ${esc(costLabel(latestAttempt))}` : ""}</p>
           <div class="model-actions">
             ${isRunning
               ? `<button type="button" data-cancel="${esc(model.id)}" class="danger">⏹ Annuler</button>`
@@ -1445,118 +1647,38 @@
     }
 
     /* ══════════════════════════════════════════
-       RENDERS SECTION — grouped by model
+       RENDERS SECTION — four-panel comparison
     ══════════════════════════════════════════ */
     function renderRendersSection() {
       const item = activeCase();
-      const groups = $("rendersGroups");
-      const empty  = $("rendersEmpty");
-      const srcRow = $("sourceThumbs");
-      groups.replaceChildren();
-
-      if (!item || !item.attempts?.length) {
-        empty.hidden  = false;
-        srcRow.hidden = true;
-        return;
-      }
-
-      // Source thumbnails
       clearObjectUrls();
-      srcRow.hidden = false;
-      srcRow.innerHTML = "";
-      for (const [lbl, blob] of [["Personne", item.personImage],["Vêtement", item.productImage]]) {
-        if (blob) {
-          const wrap = document.createElement("div");
-          wrap.className = "source-thumb-wrap";
-          wrap.innerHTML = `<span class="source-thumb-label">${esc(lbl)}</span>`;
-          const img = document.createElement("img");
-          img.className = "source-thumb";
-          img.src = newObjectUrl(blob);
-          img.alt = esc(lbl);
-          wrap.append(img);
-          srcRow.append(wrap);
-        }
+      renderComparison(item);
+      state.lightboxAttemptIds = comparisonPanels(item).filter(p => p.attempt).map(p => p.attempt.id);
+      const list = $("successfulComparisons");
+      list.replaceChildren();
+      const successfulCases = state.cases.filter(c => c.id !== item?.id &&
+        c.attempts?.some(a => a.status === "success" && a.image instanceof Blob))
+        .sort((a,b) => b.createdAt - a.createdAt);
+      for (const previous of successfulCases) {
+        const section = document.createElement("section");
+        const heading = document.createElement("h3");
+        heading.textContent = `${previous.garmentType} · Cas v${previous.version} · ${fmtDate(previous.createdAt)}`;
+        section.append(heading);
+        const button = document.createElement("button");
+        button.type = "button";
+        button.textContent = "Exporter la comparaison PNG";
+        button.disabled = !comparisonPanels(previous).every(p => p.image instanceof Blob);
+        button.addEventListener("click", () => downloadComparison(previous));
+        section.append(button);
+        const strip = document.createElement("div");
+        strip.className = "comparison-strip";
+        strip.tabIndex = 0;
+        strip.setAttribute("role","region");
+        strip.setAttribute("aria-label",heading.textContent);
+        renderComparison(previous,strip);
+        section.append(strip);
+        list.append(section);
       }
-
-      // Build per-model groups
-      const modelOrder = models.map(m => m.id);
-      state.lightboxAttemptIds = [];
-
-      let anyVisible = false;
-      for (const model of models) {
-        const modelAttempts = (item.attempts || [])
-          .filter(a => a.modelId === model.id && (a.status === "success" || a.status === "running"))
-          .sort((a,b) => b.createdAt - a.createdAt);
-
-        if (!modelAttempts.length) continue;
-        anyVisible = true;
-
-        const group = document.createElement("div");
-        group.className = "model-renders-group";
-
-        const header = document.createElement("div");
-        header.className = "model-renders-header";
-        header.innerHTML = `<strong>${esc(model.label)}</strong>
-          <span class="badge version">${esc(modelAttempts[0].modelVersion || model.version)}</span>`;
-        group.append(header);
-
-        const scroll = document.createElement("div");
-        scroll.className = "renders-scroll";
-        scroll.setAttribute("role","list");
-
-        for (const attempt of modelAttempts) {
-          if (attempt.status === "success") state.lightboxAttemptIds.push(attempt.id);
-          const card = document.createElement("div");
-          card.className = `attempt-card ${attempt.status}`;
-          card.setAttribute("role","listitem");
-
-          const imgWrap = document.createElement("div");
-          imgWrap.className = "attempt-img-wrap";
-
-          if (attempt.status === "success" && attempt.image instanceof Blob) {
-            const src = newObjectUrl(attempt.image);
-            const img = document.createElement("img");
-            img.className = "attempt-img";
-            img.src = src;
-            img.alt = `Rendu ${esc(model.label)}`;
-            img.setAttribute("data-lightbox", attempt.id);
-            img.setAttribute("tabindex","0");
-            img.setAttribute("role","button");
-            img.setAttribute("aria-label","Agrandir ce rendu");
-            imgWrap.append(img);
-          } else if (attempt.status === "running") {
-            const ph = document.createElement("div");
-            ph.className = "attempt-placeholder";
-            ph.setAttribute("role","status");
-            ph.innerHTML = `<span class="spinner" aria-hidden="true"></span>&nbsp;En cours…`;
-            imgWrap.append(ph);
-          }
-          card.append(imgWrap);
-
-          const info = document.createElement("div");
-          info.className = "attempt-info";
-          info.innerHTML = `<span>${esc(new Date(attempt.createdAt).toLocaleDateString("fr-FR"))}</span>`;
-          if (attempt.latencyMs != null)
-            info.innerHTML += ` · <span class="latency">${fmtMs(attempt.latencyMs)}</span>`;
-          card.append(info);
-
-          // Evaluation button (feature-flagged, success only)
-          if (FEATURES.evaluation && attempt.status === "success") {
-            const evalBtn = document.createElement("button");
-            evalBtn.type = "button";
-            evalBtn.className = "feat-evaluation";
-            evalBtn.setAttribute("data-evaluate", attempt.id);
-            evalBtn.textContent = attempt.evaluation ? "Modifier l'évaluation" : "Évaluer";
-            evalBtn.style.cssText = "font-size:.78rem;margin:.4rem .65rem .5rem;";
-            card.append(evalBtn);
-          }
-
-          scroll.append(card);
-        }
-        group.append(scroll);
-        groups.append(group);
-      }
-      empty.hidden = anyVisible;
     }
 
     /* ══════════════════════════════════════════
@@ -1591,9 +1713,10 @@
           <p style="margin:.25rem 0 0;font-size:.8rem;color:var(--muted);">
             ${esc(fmtDate(attempt.createdAt))} · ${fmtMs(attempt.latencyMs)}
           </p>
+          <p class="cost-detail">${esc(costLabel(attempt))} · ${esc(costDetail(attempt))}</p>
           ${attempt.error ? `<p class="error-msg">${esc(attempt.error.type)} — ${esc(attempt.error.message)}</p>` : ""}
           ${FEATURES.evaluation && attempt.evaluation ? `<p style="font-size:.8rem;">${esc(evaluationSummary(attempt.evaluation))}</p>` : ""}
-          ${FEATURES.evaluation && !attempt.evaluation && attempt.status==="success" ? `<p style="color:var(--muted);font-size:.8rem;">Évaluation manquante</p>` : ""}`;
+          ${FEATURES.evaluation && attempt.status==="success" ? `<button type="button" data-evaluate="${esc(attempt.id)}">${attempt.evaluation ? "Modifier l’évaluation" : "Évaluer"}</button>` : ""}`;
 
         // Re-generate button for failed/refused
         if (attempt.status === "failed" || attempt.status === "refused") {
@@ -1731,18 +1854,54 @@
       }, "Google Virtual Try-On");
       const result = body.predictions?.[0]?.bytesBase64Encoded || body.predictions?.[0]?.bytesBase64EncodedImage;
       if (!result) throw new ProviderError("UNKNOWN","La réponse Google ne contient pas d'image générée.");
-      return { image: dataUrlToBlob(`data:${body.predictions[0].mimeType||"image/png"};base64,${result}`), providerLatencyMs: body.metadata?.latencyMs ?? null };
+      return {
+        image: dataUrlToBlob(`data:${body.predictions[0].mimeType||"image/png"};base64,${result}`),
+        providerLatencyMs: body.metadata?.latencyMs ?? null,
+        cost:{ amountUsd:VERTEX_IMAGE_PRICE_USD, imageCount:1, rateUsd:VERTEX_IMAGE_PRICE_USD, reason:"Tarif fourni : 0,06 USD/image." }
+      };
     }
 
     /* ══════════════════════════════════════════
        PROVIDER: OpenAI GPT-Image
     ══════════════════════════════════════════ */
+    async function prepareOpenAIImage(blob, label, maxBytes = Math.floor((MAX_OPENAI_DATA_URL_CHARS - 128) * 3 / 4)) {
+      validateImage(blob,label);
+      let image;
+      try { image = await decodeComparisonImage(blob); }
+      catch {
+        throw new ProviderError("INVALID_INPUT",`L'image ${label} est illisible. Importez un fichier JPEG, PNG ou WebP valide.`);
+      }
+      const canvas = document.createElement("canvas");
+      canvas.width = image.naturalWidth;
+      canvas.height = image.naturalHeight;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) throw new ProviderError("UNKNOWN","Canvas indisponible pour préparer les images OpenAI.");
+      ctx.drawImage(image,0,0);
+      const png = await new Promise(resolve => canvas.toBlob(resolve,"image/png"));
+      if (!png) throw new ProviderError("INVALID_INPUT",`Encodage PNG impossible pour l'image ${label}.`);
+      if (png.size <= maxBytes) return png;
+      while (true) {
+        ctx.fillStyle = "#ffffff";
+        ctx.fillRect(0,0,canvas.width,canvas.height);
+        ctx.drawImage(image,0,0,canvas.width,canvas.height);
+        for (const quality of [0.92,0.85,0.75]) {
+          const jpeg = await new Promise(resolve => canvas.toBlob(resolve,"image/jpeg",quality));
+          if (!jpeg) throw new ProviderError("INVALID_INPUT",`Encodage JPEG impossible pour l'image ${label}.`);
+          if (jpeg.size <= maxBytes) return jpeg;
+        }
+        if (canvas.width === 1 && canvas.height === 1)
+          throw new ProviderError("INVALID_INPUT",`L'image ${label} reste trop volumineuse après compression.`);
+        canvas.width = Math.max(1,Math.floor(canvas.width * 0.8));
+        canvas.height = Math.max(1,Math.floor(canvas.height * 0.8));
+      }
+    }
     async function generateOpenAI({ personImage, productImage, signal, config }) {
-      const maxBytes = Math.floor((MAX_OPENAI_DATA_URL_CHARS - 128) * 3 / 4);
-      validateImage(personImage, "personne",  maxBytes, ["image/jpeg","image/png","image/webp"]);
-      validateImage(productImage,"vêtement",  maxBytes, ["image/jpeg","image/png","image/webp"]);
+      const [personPrepared,productPrepared] = await Promise.all([
+        prepareOpenAIImage(personImage,"personne"),
+        prepareOpenAIImage(productImage,"vêtement")
+      ]);
       const base = (config.openaiBaseUrl || "https://api.openai.com/v1").replace(/\/+$/, "");
-      const [pUrl, gUrl] = await Promise.all([fileAsDataUrl(personImage), fileAsDataUrl(productImage)]);
+      const [pUrl, gUrl] = await Promise.all([fileAsDataUrl(personPrepared), fileAsDataUrl(productPrepared)]);
       const body = await fetchJson(`${base}/images/edits`, {
         method:"POST", signal,
         headers:{ "Authorization":`Bearer ${config.openaiKey}`, "Content-Type":"application/json" },
@@ -1755,7 +1914,12 @@
       }, "OpenAI GPT-Image");
       const result = body.data?.[0]?.b64_json;
       if (!result) throw new ProviderError("UNKNOWN","La réponse OpenAI ne contient pas d'image générée.");
-      return { image: dataUrlToBlob(`data:image/png;base64,${result}`), providerLatencyMs: body.usage?.total_time_ms ?? null };
+      const usage = normalizedUsage(body.usage);
+      return {
+        image: dataUrlToBlob(`data:image/png;base64,${result}`),
+        providerLatencyMs: body.usage?.total_time_ms ?? null,
+        usage, cost:estimateOpenAICost(usage,config.openaiRates)
+      };
     }
 
     /* ══════════════════════════════════════════
@@ -1853,7 +2017,8 @@
         id:uid(), caseId:item.id, modelId, modelLabel:model.label,
         modelVersion: modelId === "openai-image" ? config.openaiModel : model.version,
         status:"running", saved:true, createdAt:Date.now(),
-        latencyMs:null, providerLatencyMs:null, error:null, image:null, evaluation:null
+        latencyMs:null, providerLatencyMs:null, error:null, image:null, evaluation:null,
+        usage:null, cost:{ amountUsd:null, reason:"Usage ou facturation indisponible." }
       };
       item.attempts = item.attempts || [];
       item.attempts.push(attempt);
@@ -1883,6 +2048,8 @@
         attempt.status = "success";
         attempt.image  = result.image;
         attempt.providerLatencyMs = result.providerLatencyMs ?? null;
+        attempt.usage = result.usage ?? null;
+        attempt.cost = result.cost || { amountUsd:null, reason:"Usage ou facturation indisponible." };
       } catch (err) {
         const d = errorDetails(err);
         attempt.status = d.type === "MODERATION" ? "refused" : "failed";
@@ -2044,10 +2211,7 @@
       if (!file) return false;
       try {
         validateImage(file,"sélectionnée");
-        const url = URL.createObjectURL(file);
-        const img = $(`${target}Preview`);
-        img.src = url;
-        img.classList.add("visible");
+        setPreview(target,file);
         state.capturedImages[target] = null; // clear camera capture if gallery selected
         updateGenerateAllBtn();
         return true;
@@ -2074,9 +2238,7 @@
       $(`${target}Clear`).addEventListener("click", () => {
         input.value = "";
         state.capturedImages[target] = null;
-        const img = $(`${target}Preview`);
-        img.src = "";
-        img.classList.remove("visible");
+        setPreview(target,null);
         updateGenerateAllBtn();
       });
     }
@@ -2237,18 +2399,39 @@
        LIGHTBOX
     ══════════════════════════════════════════ */
     function openLightbox(attemptId) {
-      const item = activeCase();
+      const item = state.cases.find(c => c.attempts?.some(a => a.id === attemptId));
       if (!item) return;
+      state.lightboxCaseId = item.id;
+      state.lightboxAttemptIds = comparisonPanels(item).filter(p => p.attempt).map(p => p.attempt.id);
       const idx = state.lightboxAttemptIds.indexOf(attemptId);
       if (idx === -1) return;
+      state.lightboxSource = false;
+      state.lightboxReturnTarget = document.activeElement;
       state.lightboxCurrentIdx = idx;
       showLightboxAtIndex(idx, item);
       $("lightbox").showModal();
       trapFocus($("lightbox"));
       $("closeLightbox").focus();
     }
+    function openSourceLightbox(target, source) {
+      const blob = source || state.capturedImages[target] || $(`${target}File`).files?.[0]
+        || activeCase()?.[`${target}Image`];
+      if (!(blob instanceof Blob)) return;
+      state.lightboxSource = true;
+      state.lightboxReturnTarget = document.activeElement;
+      $("lightboxImage").src = URL.createObjectURL(blob);
+      $("lightboxTitle").textContent = target === "person" ? "Personne" : "Vêtement";
+      $("lightboxMeta").textContent = "Image source";
+      $("lightboxCounter").textContent = "";
+      $("lightboxPrev").disabled = true;
+      $("lightboxNext").disabled = true;
+      $("lightboxSources").replaceChildren();
+      $("lightbox").showModal();
+      trapFocus($("lightbox"));
+      $("closeLightbox").focus();
+    }
     function showLightboxAtIndex(idx, item) {
-      item = item || activeCase();
+      item = item || state.cases.find(c => c.id === state.lightboxCaseId);
       if (!item) return;
       const id = state.lightboxAttemptIds[idx];
       const attempt = item.attempts?.find(a => a.id === id);
@@ -2256,7 +2439,7 @@
       const model = models.find(m => m.id === attempt.modelId);
       $("lightboxImage").src = URL.createObjectURL(attempt.image);
       $("lightboxTitle").textContent = `${attempt.modelLabel || model?.label || attempt.modelId}`;
-      $("lightboxMeta").textContent  = `${fmtDate(attempt.createdAt)} · ${fmtMs(attempt.latencyMs)}`;
+      $("lightboxMeta").textContent  = `${fmtDate(attempt.createdAt)} · ${fmtMs(attempt.latencyMs)} · ${costLabel(attempt)} · ${costDetail(attempt)}`;
       $("lightboxCounter").textContent = `${idx+1} / ${state.lightboxAttemptIds.length}`;
       $("lightboxPrev").disabled = (idx === 0);
       $("lightboxNext").disabled = (idx === state.lightboxAttemptIds.length - 1);
@@ -2278,7 +2461,8 @@
       }
     }
     function lightboxNav(delta) {
-      const item = activeCase();
+      if (state.lightboxSource) return;
+      const item = state.cases.find(c => c.id === state.lightboxCaseId);
       if (!item) return;
       const newIdx = state.lightboxCurrentIdx + delta;
       if (newIdx < 0 || newIdx >= state.lightboxAttemptIds.length) return;
@@ -2418,13 +2602,13 @@
         lines.push(`- Référence : ${markdownCell(c.reference)}`);
         lines.push(`- Couleur : ${markdownCell(c.color)}`);
         lines.push(`- Créé : ${new Date(c.createdAt).toLocaleString("fr-FR")}`,"");
-        lines.push("| Modèle / version | Résultat | Latence (ms) | Statut | Note produit | Note personne/fond | Commentaire |");
-        lines.push("|---|---|---:|---|---:|---:|---|");
+        lines.push("| Modèle / version | Résultat | Latence (ms) | Coût estimé | Détail coût/tokens | Statut | Note produit | Note personne/fond | Commentaire |");
+        lines.push("|---|---|---:|---|---|---|---:|---:|---|");
         for (const a of (c.attempts||[])) {
           const ev = a.evaluation;
-          lines.push(`| ${markdownCell(a.modelLabel)} / ${markdownCell(a.modelVersion)} | ${markdownCell(labelsByStatus[a.status]||a.status)}${a.error?` (${markdownCell(a.error.type)})`:""} | ${a.latencyMs==null?"—":Math.round(a.latencyMs)} | ${ev?(ev.usability==="usable"?"Exploitable":"Non exploitable"):"—"} | ${ev?.productFidelity??"—"} | ${ev?.personBackground??"—"} | ${markdownCell(ev?.comment||"")} |`);
+          lines.push(`| ${markdownCell(a.modelLabel)} / ${markdownCell(a.modelVersion)} | ${markdownCell(labelsByStatus[a.status]||a.status)}${a.error?` (${markdownCell(a.error.type)})`:""} | ${a.latencyMs==null?"—":Math.round(a.latencyMs)} | ${markdownCell(costLabel(a))} | ${markdownCell(costDetail(a))} | ${ev?(ev.usability==="usable"?"Exploitable":"Non exploitable"):"—"} | ${ev?.productFidelity??"—"} | ${ev?.personBackground??"—"} | ${markdownCell(ev?.comment||"")} |`);
         }
-        if (!(c.attempts||[]).length) lines.push("| — | Aucune tentative | — | — | — | — | — |");
+        if (!(c.attempts||[]).length) lines.push("| — | Aucune tentative | — | — | — | — | — | — | — |");
         lines.push("");
       }
       return `${lines.join("\n")}\n`;
@@ -2446,6 +2630,8 @@
        EVENTS
     ══════════════════════════════════════════ */
     function setupEvents() {
+      $("exportComparisonBtn").addEventListener("click",() => downloadComparison());
+      $("openaiModel").addEventListener("input",updateModelPricing);
       // Action bar
       $("openSettingsBtn").addEventListener("click",()=>{ $("providerSettings").showModal(); trapFocus($("providerSettings")); $("closeSettingsBtn").focus(); });
       $("openSessionsBtn").addEventListener("click",()=>{ $("sessionsPanel").showModal(); trapFocus($("sessionsPanel")); $("closeSessionsBtn").focus(); });
@@ -2498,19 +2684,36 @@
       });
 
       // Renders delegation
-      $("rendersGroups").addEventListener("click", e=>{
-        const img = e.target.closest("[data-lightbox]");
-        if (img) openLightbox(img.dataset.lightbox);
-        const ev = e.target.closest("[data-evaluate]");
-        if (ev && FEATURES.evaluation) showEvaluationDialog(ev.dataset.evaluate);
-      });
-      $("rendersGroups").addEventListener("keydown", e=>{
-        const img = e.target.closest("[data-lightbox]");
-        if (img && (e.key==="Enter"||e.key===" ")) { e.preventDefault(); openLightbox(img.dataset.lightbox); }
-      });
+      for (const target of ["person","product"]) {
+        const preview = $(`${target}Preview`);
+        preview.tabIndex = 0;
+        preview.setAttribute("role","button");
+        preview.setAttribute("aria-label",`Agrandir : ${target === "person" ? "Personne" : "Vêtement"}`);
+        preview.addEventListener("click",()=>openSourceLightbox(target));
+        preview.addEventListener("keydown",e=>{
+          if (e.key === "Enter" || e.key === " ") { e.preventDefault(); openSourceLightbox(target); }
+        });
+      }
+      const enlargeComparison = e => {
+        const img = e.target.closest("img");
+        if (!img) return;
+        if (e.type === "keydown" && e.key !== "Enter" && e.key !== " ") return;
+        if (e.type === "keydown") e.preventDefault();
+        if (img.dataset.lightbox) openLightbox(img.dataset.lightbox);
+        else if (img.dataset.source) {
+          const item = state.cases.find(c => c.id === img.dataset.caseId);
+          openSourceLightbox(img.dataset.source,item?.[`${img.dataset.source}Image`]);
+        }
+      };
+      $("comparisonStrip").addEventListener("click",enlargeComparison);
+      $("comparisonStrip").addEventListener("keydown",enlargeComparison);
+      $("successfulComparisons").addEventListener("click",enlargeComparison);
+      $("successfulComparisons").addEventListener("keydown",enlargeComparison);
 
       // History delegation
       $("historyList").addEventListener("click", e=>{
+        const ev = e.target.closest("[data-evaluate]");
+        if (ev && FEATURES.evaluation) showEvaluationDialog(ev.dataset.evaluate);
         const relaunch = e.target.closest("[data-relaunch]");
         if (relaunch) launchModel(relaunch.dataset.relaunch);
       });
@@ -2533,8 +2736,12 @@
         if (Math.abs(dx) > 50) lightboxNav(dx < 0 ? 1 : -1);
       },{passive:true});
       $("lightbox").addEventListener("close",()=>{
+        if (state.lightboxReturnTarget?.isConnected) {
+          state.lightboxReturnTarget.focus();
+          return;
+        }
         // Return focus to the triggering image in the renders section
-        const imgs = [...$("rendersGroups").querySelectorAll("[data-lightbox]")];
+        const imgs = [...document.querySelectorAll("#comparisonStrip [data-lightbox]")];
         const targetId = state.lightboxAttemptIds[state.lightboxCurrentIdx];
         const el = imgs.find(i => i.dataset.lightbox === targetId);
         if (el) el.focus();
